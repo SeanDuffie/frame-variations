@@ -14,12 +14,12 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
-from video2frames import VidClass
+from frame_extractor import VidClass
 
 ### FLAGS ###
 PREV = True     # Display output to screen
 OUT = True      # Write output to a jpg file
-VID = False     # True means to populate ./raw with frames from a video, False uses ./raw as is
+VID = True     # True means to populate ./raw with frames from a video, False uses ./raw as is
 
 
 class ImgMod:
