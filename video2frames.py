@@ -10,6 +10,10 @@ import numpy as np
 class VidClass:
     """Handles video processing"""
     def __init__(self):
+        # Initial Logger Settings
+        fmt_main = "%(asctime)s | main\t\t: %(message)s"
+        logging.basicConfig(format=fmt_main, level=logging.INFO,
+                        datefmt="%Y-%m-%D %H:%M:%S")
         self.path = self.select_vid()
         self.FRAME_ARR = self.get_vid()
 
@@ -17,7 +21,8 @@ class VidClass:
         """ Open a file chooser dialog and allow the user to select an input image """
         select = filedialog.askopenfilename()
         if len(select) > 0:
-            print(f"Selected Path = {select}")
+            logging.info("Selected Path = %s", select)
+            logging.info("This takes a minute or two...")
             return select
         return "VID_20221226_155105.mp4"
 
@@ -28,7 +33,7 @@ class VidClass:
 
         # Check if camera opened successfully
         if cap.isOpened() is False:
-            print("Error opening video stream or file")
+            logging.info("Error opening video stream or file")
         
         # Read until video is completed
         while cap.isOpened():
@@ -41,7 +46,7 @@ class VidClass:
             else:
                 break
 
-        print(f"Video length = {len(frames)} frames")
+        logging.info(f"Video length = {len(frames)} frames")
         
         cap.release()
         return frames
@@ -52,10 +57,10 @@ class VidClass:
         while not stop:
             i = 0
             while i < len(self.FRAME_ARR):
-                print(f"Frame {i}, ", str(int(i/30)) + "." + str(i%30), "seconds")
+                # logging.info("Frame %d, %d.%d seconds", i, int(i/30), i%30)
                 cv2.imshow('Frame', self.FRAME_ARR[i])
             # for i, frame in enumerate(self.FRAME_ARR):
-            #     print(f"Frame {i}, ", str(int(i/30)) + "." + str(i%30), "seconds")
+            #     logging.info(f"Frame {i}, ", str(int(i/30)) + "." + str(i%30), "seconds")
             #     cv2.imshow('Frame',frame)
                 i += 1
                 # Press Q on keyboard to  exit
@@ -64,7 +69,7 @@ class VidClass:
                     break
 
     def select_frames(self, start, end, interval):
-        """ Print out selected frames """
+        """ logging.info out selected frames """
         i = start
         while i <= end:
             cv2.imwrite(f"frames/frame{i}.jpg", self.FRAME_ARR[i])
@@ -85,12 +90,30 @@ class VidClass:
 if __name__ == "__main__":
     vid = VidClass()
 
-    print("Previewing Video frames...")
+    logging.info("Previewing Video frames...")
     vid.play_vid()
 
-    a = int(input("start frame: "))
-    b = int(input("end frame: "))
-    i = int(input("interval: "))
+    a = -1
+    b = -1
+    i = -1
+    while a < 0:
+        try:
+            a = int(input("start frame: "))
+        except:
+            logging.info("enter an int!")
+            a = -1
+    while b < 0:
+        try:
+            b = int(input("end frame: "))
+        except:
+            logging.info("enter an int!")
+            b = -1
+    while i < 0:
+        try:
+            i = int(input("interval: "))
+        except:
+            logging.info("enter an int!")
+            i = -1
     vid.select_frames(a, b, i)
     
     cv2.destroyAllWindows()
