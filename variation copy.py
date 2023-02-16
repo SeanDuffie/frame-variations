@@ -18,8 +18,8 @@ from video2frames import VidClass
 
 ### FLAGS ###
 PREV = True     # Display output to screen
-OUT = True   # Write output to a jpg file
-VID = True   # True means to populate ./raw with frames from a video, False uses ./raw as is
+OUT = True      # Write output to a jpg file
+VID = False     # True means to populate ./raw with frames from a video, False uses ./raw as is
 
 
 class ImgMod:
@@ -46,9 +46,27 @@ class ImgMod:
         logging.info("Previewing Video frames...")
         vid.play_vid()
 
-        a = int(input("start frame: "))
-        b = int(input("end frame: "))
-        i = int(input("interval: "))
+        a = -1
+        b = -1
+        i = -1
+        while a < 0:
+            try:
+                a = int(input("start frame: "))
+            except:
+                logging.info("enter an int!")
+                a = -1
+        while b < 0:
+            try:
+                b = int(input("end frame: "))
+            except:
+                logging.info("enter an int!")
+                b = -1
+        while i < 0:
+            try:
+                i = int(input("interval: "))
+            except:
+                logging.info("enter an int!")
+                i = -1
         vid.select_frames(a, b, i)
         
         cv2.destroyAllWindows()
@@ -209,12 +227,15 @@ class ImgMod:
                 for (x, y, w, h) in faces:
                     cropped = cur_img[y:y+h, x:x+w]
                     cv2.imshow("cropped", cropped)
-                    if input("Confirm: ") == "x":
+                    logging.info("Press 'c' to confirm.")
+                    if cv2.waitKey(0) & 0xFF == ord('c'):
                         # logging.info(x, w, y, h)
                         bp, wp = self.auto_balance(cropped)
                         cv2.rectangle(cur_img, (x, y), (x+w, y+h), (255, 255, 255), 2)
-
-
+                        # Auto
+                        fc = self.bri_con(cur_img=cur_img, b=bp, w=wp)
+                        cv2.imshow("fc", fc)                # Show auto balanced
+                        cv2.imwrite("edited/auto_" + file_name, fc)
 
 
             ########## ADJUSTMENTS ##########
@@ -225,14 +246,6 @@ class ImgMod:
             fc_3 = self.bri_con(fc_2, 50, 200)
             fc_12_220 = self.bri_con(cur_img, 12, 220)
             fc_24_185 = self.bri_con(cur_img, 24, 185)
-
-            # Auto
-            if bp == 0 and wp == 255:
-                fc = self.bri_con(cur_img=cur_img, b=bp, w=wp)
-
-            # self.pixel_print("cur_img", cur_img)
-            # self.pixel_print("cropped", cropped)
-            # self.pixel_print("fc_24_185", fc_24_185)
 
             # Hue/Saturation
             low_sat_45 = self.hue_sat(fc_24_185, 45, 1)
@@ -251,7 +264,6 @@ class ImgMod:
                 cv2.imshow("original", cur_img)     # Show Original
                 # cv2.imshow("greyscale", gry)        # Show Greyscale
                 # cv2.imshow("cropped", cropped)      # Show Isolated Face
-                cv2.imshow("fc", fc)                # Show Isolated Face
 
                 # 0 Hue
                 cv2.imshow("low_sat", low_sat_180)
@@ -288,7 +300,6 @@ class ImgMod:
                 cv2.imwrite("edited/frame_" + file_name, cur_img)
                 # cv2.imwrite("edited/2_gray_" + file_name, gry)
                 # cv2.imwrite("edited/cropped" + file_name, cropped)
-                cv2.imwrite("edited/auto_" + file_name, fc)
 
 
                 cv2.imwrite("edited/g1Level_0-190_" + file_name, fc_1)
