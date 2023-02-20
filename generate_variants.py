@@ -19,7 +19,8 @@ from frame_extractor import VidClass
 ### FLAGS ###
 PREV = True     # Display output to screen
 OUT = True      # Write output to a jpg file
-VID = True     # True means to populate ./raw with frames from a video, False uses ./raw as is
+VID = False     # True means to populate ./raw with frames from a video, False uses ./raw as is
+AUTO = True
 
 
 class ImgMod:
@@ -29,13 +30,13 @@ class ImgMod:
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
-        
+
         self.prev = prev    # Display output to screen
         self.out = out      # Write output to a jpg file
-        self.vid = vid      # True means to populate ./raw with frames from a video, False uses ./raw as is
+        self.vid = vid      # True populates ./raw with frames from a video, False uses ./raw as is
 
         # Source Image Array
-        self.IMG_ARR = {}
+        self.img_arr = {}
 
     def acquire_frames(self):
         """
@@ -89,7 +90,7 @@ class ImgMod:
                     logging.info('Could not open or find the image: img/' + file_name)
                     exit(0)
 
-                self.IMG_ARR[file_name] = img
+                self.img_arr[file_name] = img
 
         return 0
 
@@ -212,7 +213,7 @@ class ImgMod:
         
         self.parse_dir()
 
-        for file_name, cur_img in self.IMG_ARR.items():
+        for file_name, cur_img in self.img_arr.items():
             bp, wp = 0, 255
 
             logging.info("Finding faces...")
@@ -241,87 +242,102 @@ class ImgMod:
             ########## ADJUSTMENTS ##########
             # Brightness/Contrast using Black and White points
             # TODO: Add grey point
-            fc_1 = self.bri_con(cur_img, 0, 190)
-            fc_2 = self.bri_con(fc_1, 0, 200)
-            fc_3 = self.bri_con(fc_2, 50, 200)
-            fc_12_220 = self.bri_con(cur_img, 12, 220)
-            fc_24_185 = self.bri_con(cur_img, 24, 185)
-
-            # Hue/Saturation
-            low_sat_45 = self.hue_sat(fc_24_185, 45, 1)
-            high_sat_45 = self.hue_sat(fc_24_185, 45, 100)
-            low_sat_90 = self.hue_sat(fc_24_185, 90, 1)
-            high_sat_90 = self.hue_sat(fc_24_185, 90, 100)
-            low_sat_135 = self.hue_sat(fc_24_185, 135, 1)
-            high_sat_135 = self.hue_sat(fc_24_185, 135, 100)
-            low_sat_180 = self.hue_sat(fc_24_185, 180, 1)
-            high_sat_180 = self.hue_sat(fc_24_185, 180, 100)
-            ########   END ADJUSTMENTS   ##########
 
 
-            ##########  START DISPLAY  ##########
-            if self.prev:
-                cv2.imshow("original", cur_img)     # Show Original
-                # cv2.imshow("greyscale", gry)        # Show Greyscale
-                # cv2.imshow("cropped", cropped)      # Show Isolated Face
+            cv2.imshow("original", cur_img)     # Show Original
+            if not VID:
+                bp, wp = self.auto_balance(cur_img)
+                logging.info("(bp, wp) = (%d, %d)", bp, wp)
+                fc = self.bri_con(cur_img=cur_img, b=bp, w=wp)
+                cv2.imshow("fc", fc)                # Show auto balanced
+                cv2.imwrite("edited/auto_" + file_name, fc)
 
-                # 0 Hue
-                cv2.imshow("low_sat", low_sat_180)
-                cv2.imshow("high_sat", high_sat_180)
-                # cv2.waitKey(0)
                 
-                # 60 Hue
-                cv2.imshow("low_sat", low_sat_45)
-                cv2.imshow("high_sat", high_sat_45)
-                # cv2.waitKey(0)
-                
-                # 120 Hue
-                cv2.imshow("low_sat", low_sat_90)
-                cv2.imshow("high_sat", high_sat_90)
-                # cv2.waitKey(0)
-                
-                # 150 Hue
-                cv2.imshow("low_sat", low_sat_135)
-                cv2.imshow("high_sat", high_sat_135)
                 cv2.waitKey(0)
-
-                # Raw BGR Color Modification
-                # cv2.imshow("color_mod", color_mod(cur_img, 0.9, 0.9, 0.9))
-                # cv2.imshow("blue", color_mod(cur_img, 1, 0, 0))
-                # cv2.imshow("green", color_mod(cur_img, 0, 1, 0))
-                # cv2.imshow("red", color_mod(cur_img, 0, 0, 1))
-            
                 cv2.destroyAllWindows()
-            ##########   END DISPLAY   ##########
+
+            if not AUTO:
+                fc_1 = self.bri_con(cur_img, 0, 190)
+                fc_2 = self.bri_con(fc_1, 0, 200)
+                fc_3 = self.bri_con(fc_2, 50, 200)
+                fc_12_220 = self.bri_con(cur_img, 12, 220)
+                fc_24_185 = self.bri_con(cur_img, 24, 185)
+
+                # Hue/Saturation
+                low_sat_45 = self.hue_sat(fc_24_185, 45, 1)
+                high_sat_45 = self.hue_sat(fc_24_185, 45, 100)
+                low_sat_90 = self.hue_sat(fc_24_185, 90, 1)
+                high_sat_90 = self.hue_sat(fc_24_185, 90, 100)
+                low_sat_135 = self.hue_sat(fc_24_185, 135, 1)
+                high_sat_135 = self.hue_sat(fc_24_185, 135, 100)
+                low_sat_180 = self.hue_sat(fc_24_185, 180, 1)
+                high_sat_180 = self.hue_sat(fc_24_185, 180, 100)
+                ########   END ADJUSTMENTS   ##########
 
 
-            ##########  START FILE OUTPUT  ##########
-            if self.out:
-                cv2.imwrite("edited/frame_" + file_name, cur_img)
-                # cv2.imwrite("edited/2_gray_" + file_name, gry)
-                # cv2.imwrite("edited/cropped" + file_name, cropped)
+                ##########  START DISPLAY  ##########
+                if self.prev:
+                    # cv2.imshow("original", cur_img)     # Show Original
+                    # cv2.imshow("greyscale", gry)        # Show Greyscale
+                    # cv2.imshow("cropped", cropped)      # Show Isolated Face
+
+                    # 0 Hue
+                    cv2.imshow("low_sat", low_sat_180)
+                    cv2.imshow("high_sat", high_sat_180)
+                    # cv2.waitKey(0)
+                    
+                    # 60 Hue
+                    cv2.imshow("low_sat", low_sat_45)
+                    cv2.imshow("high_sat", high_sat_45)
+                    # cv2.waitKey(0)
+                    
+                    # 120 Hue
+                    cv2.imshow("low_sat", low_sat_90)
+                    cv2.imshow("high_sat", high_sat_90)
+                    # cv2.waitKey(0)
+                    
+                    # 150 Hue
+                    cv2.imshow("low_sat", low_sat_135)
+                    cv2.imshow("high_sat", high_sat_135)
+                    cv2.waitKey(0)
+
+                    # Raw BGR Color Modification
+                    # cv2.imshow("color_mod", color_mod(cur_img, 0.9, 0.9, 0.9))
+                    # cv2.imshow("blue", color_mod(cur_img, 1, 0, 0))
+                    # cv2.imshow("green", color_mod(cur_img, 0, 1, 0))
+                    # cv2.imshow("red", color_mod(cur_img, 0, 0, 1))
+            
+                    cv2.destroyAllWindows()
+                ##########   END DISPLAY   ##########
 
 
-                cv2.imwrite("edited/g1Level_0-190_" + file_name, fc_1)
-                cv2.imwrite("edited/g2Level_0-190_0-200_" + file_name, fc_2)
-                cv2.imwrite("edited/g3Level_0-190_0-200_50-200_" + file_name, fc_3)
-                cv2.imwrite("edited/Level_12-220_" + file_name, fc_12_220)
-                cv2.imwrite("edited/Level_24-185_" + file_name, fc_24_185)
+                ##########  START FILE OUTPUT  ##########
+                if self.out:
+                    cv2.imwrite("edited/frame_" + file_name, cur_img)
+                    # cv2.imwrite("edited/2_gray_" + file_name, gry)
+                    # cv2.imwrite("edited/cropped" + file_name, cropped)
 
 
-                cv2.imwrite("edited/level_24-1-185_h_90" + file_name, low_sat_45)
-                cv2.imwrite("edited/level_24-1-185_h_-90" + file_name, low_sat_135)
-                cv2.imwrite("edited/level_24-1-185_h_90_s_100" + file_name, high_sat_45)
-                cv2.imwrite("edited/level_24-1-185_h_-90_s100" + file_name, high_sat_135)
+                    cv2.imwrite("edited/g1Level_0-190_" + file_name, fc_1)
+                    cv2.imwrite("edited/g2Level_0-190_0-200_" + file_name, fc_2)
+                    cv2.imwrite("edited/g3Level_0-190_0-200_50-200_" + file_name, fc_3)
+                    cv2.imwrite("edited/Level_12-220_" + file_name, fc_12_220)
+                    cv2.imwrite("edited/Level_24-185_" + file_name, fc_24_185)
 
-                cv2.imwrite("edited/level_24-1-185_h_-180" + file_name, low_sat_90)
-                cv2.imwrite("edited/level_24-1-185_h_-180_s_100" + file_name, high_sat_90)
 
-                cv2.imwrite("edited/level_24-1-185_s_100" + file_name, high_sat_180)
-                cv2.imwrite("edited/level_24-1-185_s_-0" + file_name, low_sat_180)
-            ##########   END FILE OUTPUT   ##########
+                    cv2.imwrite("edited/level_24-1-185_h_90" + file_name, low_sat_45)
+                    cv2.imwrite("edited/level_24-1-185_h_-90" + file_name, low_sat_135)
+                    cv2.imwrite("edited/level_24-1-185_h_90_s_100" + file_name, high_sat_45)
+                    cv2.imwrite("edited/level_24-1-185_h_-90_s100" + file_name, high_sat_135)
 
-        
+                    cv2.imwrite("edited/level_24-1-185_h_-180" + file_name, low_sat_90)
+                    cv2.imwrite("edited/level_24-1-185_h_-180_s_100" + file_name, high_sat_90)
+
+                    cv2.imwrite("edited/level_24-1-185_s_100" + file_name, high_sat_180)
+                    cv2.imwrite("edited/level_24-1-185_s_-0" + file_name, low_sat_180)
+                ##########   END FILE OUTPUT   ##########
+
+
     def resize_img(self, img, scale):
         """
         Scales the image by the ratio passed in scale
@@ -342,9 +358,7 @@ class ImgMod:
         h,s,v = cv2.split(hsv)
 
         logging.info(name + ":")
-        logging.info("\tMax =", np.max(v))
-        logging.info("\tMin =", np.min(v))
-
+        logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
 
 
 if __name__ == "__main__":
