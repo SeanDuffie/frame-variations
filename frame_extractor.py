@@ -1,6 +1,7 @@
 """ vid_test.py
 """
-from tkinter import Button, Label, Tk, filedialog
+import os
+from tkinter import filedialog
 import time
 import logging
 
@@ -9,12 +10,13 @@ import numpy as np
 
 class VidClass:
     """Handles video processing"""
-    def __init__(self):
+    def __init__(self, path):
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
-        self.path = self.select_vid()
+        self.path = path
+        self.name = os.path.basename(self.path)
         self.FRAME_ARR = self.get_vid()
 
     def select_vid(self):
@@ -22,14 +24,15 @@ class VidClass:
         select = filedialog.askopenfilename()
         if len(select) > 0:
             logging.info("Selected Path = %s", select)
-            logging.info("This takes a minute or two...")
             return select
         return "VID_20221226_155105.mp4"
 
     def get_vid(self):
         """ Puts all frames into an array """
+        logging.info("Reading video...")
+        logging.info("This takes a minute or two...")
         frames = []
-        cap = cv2.VideoCapture(self.path)#, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")#, cv2.CAP_DSHOW)
 
         # Check if camera opened successfully
         if cap.isOpened() is False:
@@ -53,6 +56,7 @@ class VidClass:
 
     def play_vid(self):
         """ Plays the frames in order """
+        logging.info("Playing video...")
         stop = False
         while not stop:
             i = 0
@@ -72,7 +76,7 @@ class VidClass:
         """ logging.info out selected frames """
         i = start
         while i <= end:
-            cv2.imwrite(f"frames/frame{i}.jpg", self.FRAME_ARR[i])
+            cv2.imwrite(f"{self.path}/frames/frame{i}.jpg", self.FRAME_ARR[i])
             i += interval
 
     def resize_img(self, img, scale):
@@ -88,7 +92,8 @@ class VidClass:
 
 
 if __name__ == "__main__":
-    vid = VidClass()
+    path = filedialog.askdirectory()
+    vid = VidClass(path)
 
     logging.info("Previewing Video frames...")
     vid.play_vid()

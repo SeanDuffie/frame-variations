@@ -7,7 +7,7 @@ This will be done in batch on a large selection of files
 import logging
 import os
 import sys
-from tkinter import Button, Label, Tk, filedialog
+from tkinter import filedialog
 from typing import Any
 
 import cv2
@@ -19,13 +19,11 @@ from frame_extractor import VidClass
 ### FLAGS ###
 PREV = True     # Display output to screen
 OUT = True      # Write output to a jpg file
-VID = False     # True means to populate ./raw with frames from a video, False uses ./raw as is
-AUTO = True
 
 
 class ImgMod:
     """Applied image modifications automatically in bulk"""
-    def __init__(self, prev, out, vid):
+    def __init__(self, prev, out):
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
@@ -33,19 +31,22 @@ class ImgMod:
 
         self.prev = prev    # Display output to screen
         self.out = out      # Write output to a jpg file
-        self.vid = vid      # True populates ./raw with frames from a video, False uses ./raw as is
+
+        self.path = filedialog.askdirectory()
+        if not os.path.exists(self.path + "/frames"):
+            os.mkdir(self.path + "/frames")
 
         # Source Image Array
         self.img_arr = {}
 
-    def acquire_frames(self):
+    def acquire_frames(self) -> None:
         """
         Pick out frames from a video
         """
-        vid = VidClass()
+        video = VidClass(self.path)
 
         logging.info("Previewing Video frames...")
-        vid.play_vid()
+        video.play_vid()
 
         a = -1
         b = -1
@@ -56,38 +57,35 @@ class ImgMod:
             except:
                 logging.info("enter an int!")
                 a = -1
-        while b < 0:
+        while b < a:
             try:
                 b = int(input("end frame: "))
             except:
                 logging.info("enter an int!")
                 b = -1
-        while i < 0:
+        while i < 1:
             try:
                 i = int(input("interval: "))
             except:
                 logging.info("enter an int!")
                 i = -1
-        vid.select_frames(a, b, i)
+        video.select_frames(a, b, i)
         
         cv2.destroyAllWindows()
 
-    def parse_dir(self):
+    def parse_dir(self) -> None:
         """ Parses a directory of images and calls the function to modify images """
-        if self.vid:
-            path = "frames/"
-        else:
-            path = "raw/"
+        frame_dir = self.path + "/frames/"
         
-        for file_name in os.listdir(path):
+        for file_name in os.listdir(frame_dir):
             # check if the image ends with png or jpg or jpeg
             if (file_name.endswith(".png") or file_name.endswith(".jpg")\
                 or file_name.endswith(".jpeg")):
-                logging.info("Reading File: " + path + file_name + "...")
-                img = cv2.imread(path + file_name)
+                logging.info("Reading File: %s...", file_name)
+                img = cv2.imread(frame_dir + file_name)
 
                 if img is None:
-                    logging.info('Could not open or find the image: img/' + file_name)
+                    logging.info('Could not open or find the image: %s', file_name)
                     exit(0)
 
                 self.img_arr[file_name] = img
@@ -116,10 +114,14 @@ class ImgMod:
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         h,s,v = cv2.split(hsv)
 
-        b = np.min(v)
-        w = np.max(v)
+        bp = np.min(v)
+        wp = np.max(v)
 
-        return b, w
+        bal_img = self.bri_con(cur_img=img, b=bp, w=wp)
+
+        cv2.imshow("fc", bal_img)                # Show auto balanced
+
+        return bal_img
 
     def bri_con(self, cur_img, b=0, w=0, g=0) -> npt.NDArray[Any]:
         """
@@ -181,7 +183,6 @@ class ImgMod:
 
         return n_img
 
-
     def color_mod(self, cur_img, b_scale, g_scale, r_scale) -> npt.NDArray[Any]:
         """
         Adjusts the Intensity of each BGR value individually
@@ -205,12 +206,14 @@ class ImgMod:
         
         return n_img
 
+    def write_file(self, mod, name, img) -> None:
+        if not os.path.exists(self.path + mod + name):
+            os.mkdir(self.path + mod + name)
+        cv2.imwrite(self.path + mod + name, img)
 
     def run(self) -> None:
         """ Main Class Runner """
-        if self.vid:
-            self.acquire_frames()
-        
+        self.acquire_frames()
         self.parse_dir()
 
         for file_name, cur_img in self.img_arr.items():
@@ -228,35 +231,18 @@ class ImgMod:
                 for (x, y, w, h) in faces:
                     cropped = cur_img[y:y+h, x:x+w]
                     cv2.imshow("cropped", cropped)
-                    logging.info("Press 'c' to confirm.")
+                    logging.info("Press 'c' to confirm. Any other button skips.")
                     if cv2.waitKey(0) & 0xFF == ord('c'):
                         # logging.info(x, w, y, h)
-                        bp, wp = self.auto_balance(cropped)
+                        auto = self.auto_balance(cropped)         # Auto
                         cv2.rectangle(cur_img, (x, y), (x+w, y+h), (255, 255, 255), 2)
-                        # Auto
-                        fc = self.bri_con(cur_img=cur_img, b=bp, w=wp)
-                        cv2.imshow("fc", fc)                # Show auto balanced
-                        cv2.imwrite("edited/auto_" + file_name, fc)
+                        self.write_file("/auto/", file_name, auto)
 
 
-            ########## ADJUSTMENTS ##########
-            # Brightness/Contrast using Black and White points
-            # TODO: Add grey point
-
-
-            cv2.imshow("original", cur_img)     # Show Original
-            if not VID:
-                bp, wp = self.auto_balance(cur_img)
-                logging.info("(bp, wp) = (%d, %d)", bp, wp)
-                fc = self.bri_con(cur_img=cur_img, b=bp, w=wp)
-                cv2.imshow("fc", fc)                # Show auto balanced
-                cv2.imwrite("edited/auto_" + file_name, fc)
-
-                
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
-            if not AUTO:
+                cv2.imshow("original", cur_img)     # Show Original
+                ########## ADJUSTMENTS ##########
+                # Brightness/Contrast using Black and White points
+                # TODO: Add grey point
                 fc_1 = self.bri_con(cur_img, 0, 190)
                 fc_2 = self.bri_con(fc_1, 0, 200)
                 fc_3 = self.bri_con(fc_2, 50, 200)
@@ -313,28 +299,26 @@ class ImgMod:
 
                 ##########  START FILE OUTPUT  ##########
                 if self.out:
-                    cv2.imwrite("edited/frame_" + file_name, cur_img)
-                    # cv2.imwrite("edited/2_gray_" + file_name, gry)
-                    # cv2.imwrite("edited/cropped" + file_name, cropped)
+                    self.write_file("/edited/" + file_name, cur_img)
+                    # self.write_file("/2_gray_" + file_name, gry)
+                    # self.write_file("/cropped" + file_name, cropped)
 
+                    self.write_file("/g1Level_0-190/" + file_name, fc_1)
+                    self.write_file("/g2Level_0-190_0-200/" + file_name, fc_2)
+                    self.write_file("/g3Level_0-190_0-200_50-200/" + file_name, fc_3)
+                    self.write_file("/Level_12-220/" + file_name, fc_12_220)
+                    self.write_file("/Level_24-185/" + file_name, fc_24_185)
 
-                    cv2.imwrite("edited/g1Level_0-190_" + file_name, fc_1)
-                    cv2.imwrite("edited/g2Level_0-190_0-200_" + file_name, fc_2)
-                    cv2.imwrite("edited/g3Level_0-190_0-200_50-200_" + file_name, fc_3)
-                    cv2.imwrite("edited/Level_12-220_" + file_name, fc_12_220)
-                    cv2.imwrite("edited/Level_24-185_" + file_name, fc_24_185)
+                    self.write_file("/level_24-1-185_h_90/" + file_name, low_sat_45)
+                    self.write_file("/level_24-1-185_h_-90/" + file_name, low_sat_135)
+                    self.write_file("/level_24-1-185_h_90_s_100/" + file_name, high_sat_45)
+                    self.write_file("/level_24-1-185_h_-90_s100/" + file_name, high_sat_135)
 
+                    self.write_file("/level_24-1-185_h_-180/" + file_name, low_sat_90)
+                    self.write_file("/level_24-1-185_h_-180_s_100/" + file_name, high_sat_90)
 
-                    cv2.imwrite("edited/level_24-1-185_h_90" + file_name, low_sat_45)
-                    cv2.imwrite("edited/level_24-1-185_h_-90" + file_name, low_sat_135)
-                    cv2.imwrite("edited/level_24-1-185_h_90_s_100" + file_name, high_sat_45)
-                    cv2.imwrite("edited/level_24-1-185_h_-90_s100" + file_name, high_sat_135)
-
-                    cv2.imwrite("edited/level_24-1-185_h_-180" + file_name, low_sat_90)
-                    cv2.imwrite("edited/level_24-1-185_h_-180_s_100" + file_name, high_sat_90)
-
-                    cv2.imwrite("edited/level_24-1-185_s_100" + file_name, high_sat_180)
-                    cv2.imwrite("edited/level_24-1-185_s_-0" + file_name, low_sat_180)
+                    self.write_file("/level_24-1-185_s_100/" + file_name, high_sat_180)
+                    self.write_file("/level_24-1-185_s_-0/" + file_name, low_sat_180)
                 ##########   END FILE OUTPUT   ##########
 
 
@@ -362,5 +346,5 @@ class ImgMod:
 
 
 if __name__ == "__main__":
-    im = ImgMod(prev=PREV, out=OUT, vid=VID)
+    im = ImgMod(prev=PREV, out=OUT)
     sys.exit(im.run())
