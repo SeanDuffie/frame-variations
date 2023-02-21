@@ -207,8 +207,8 @@ class ImgMod:
         return n_img
 
     def write_file(self, mod, name, img) -> None:
-        if not os.path.exists(self.path + mod + name):
-            os.mkdir(self.path + mod + name)
+        if not os.path.exists(self.path + mod):
+            os.mkdir(self.path + mod)
         cv2.imwrite(self.path + mod + name, img)
 
     def run(self) -> None:
