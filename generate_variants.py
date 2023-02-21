@@ -299,26 +299,26 @@ class ImgMod:
 
                 ##########  START FILE OUTPUT  ##########
                 if self.out:
-                    self.write_file("/edited/" + file_name, cur_img)
-                    # self.write_file("/2_gray_" + file_name, gry)
-                    # self.write_file("/cropped" + file_name, cropped)
+                    self.write_file("/edited/", file_name, cur_img)
+                    # self.write_file("/2_gray_", file_name, gry)
+                    # self.write_file("/cropped", file_name, cropped)
 
-                    self.write_file("/g1Level_0-190/" + file_name, fc_1)
-                    self.write_file("/g2Level_0-190_0-200/" + file_name, fc_2)
-                    self.write_file("/g3Level_0-190_0-200_50-200/" + file_name, fc_3)
-                    self.write_file("/Level_12-220/" + file_name, fc_12_220)
-                    self.write_file("/Level_24-185/" + file_name, fc_24_185)
+                    self.write_file("/g1Level_0-190/", file_name, fc_1)
+                    self.write_file("/g2Level_0-190_0-200/", file_name, fc_2)
+                    self.write_file("/g3Level_0-190_0-200_50-200/", file_name, fc_3)
+                    self.write_file("/Level_12-220/", file_name, fc_12_220)
+                    self.write_file("/Level_24-185/", file_name, fc_24_185)
 
-                    self.write_file("/level_24-1-185_h_90/" + file_name, low_sat_45)
-                    self.write_file("/level_24-1-185_h_-90/" + file_name, low_sat_135)
-                    self.write_file("/level_24-1-185_h_90_s_100/" + file_name, high_sat_45)
-                    self.write_file("/level_24-1-185_h_-90_s100/" + file_name, high_sat_135)
+                    self.write_file("/level_24-1-185_h_90/", file_name, low_sat_45)
+                    self.write_file("/level_24-1-185_h_-90/", file_name, low_sat_135)
+                    self.write_file("/level_24-1-185_h_90_s_100/", file_name, high_sat_45)
+                    self.write_file("/level_24-1-185_h_-90_s100/", file_name, high_sat_135)
 
-                    self.write_file("/level_24-1-185_h_-180/" + file_name, low_sat_90)
-                    self.write_file("/level_24-1-185_h_-180_s_100/" + file_name, high_sat_90)
+                    self.write_file("/level_24-1-185_h_-180/", file_name, low_sat_90)
+                    self.write_file("/level_24-1-185_h_-180_s_100/", file_name, high_sat_90)
 
-                    self.write_file("/level_24-1-185_s_100/" + file_name, high_sat_180)
-                    self.write_file("/level_24-1-185_s_-0/" + file_name, low_sat_180)
+                    self.write_file("/level_24-1-185_s_100/", file_name, high_sat_180)
+                    self.write_file("/level_24-1-185_s_-0/", file_name, low_sat_180)
                 ##########   END FILE OUTPUT   ##########
 
 
