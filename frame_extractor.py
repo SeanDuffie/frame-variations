@@ -1,124 +1,138 @@
 """ vid_test.py
 """
+import logging
 import os
 from tkinter import filedialog
-import time
-import logging
+from typing import Any
 
 import cv2
-import numpy as np
+import numpy.typing as npt
+
 
 class VidClass:
     """Handles video processing"""
-    def __init__(self, path):
+    def __init__(self, path: str, scale: float) -> None:
+        """ Initializes the VidClass
+
+        :param path: directory that the program will be operating in
+            this should be a directory with a single video in it, which both have the same name
+        """
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
         self.path = path
+        self.scale = scale
         self.name = os.path.basename(self.path)
-        self.FRAME_ARR = self.get_vid()
+        self.frame_arr = self.get_vid()
 
-    def select_vid(self):
-        """ Open a file chooser dialog and allow the user to select an input image """
-        select = filedialog.askopenfilename()
-        if len(select) > 0:
-            logging.info("Selected Path = %s", select)
-            return select
-        return "VID_20221226_155105.mp4"
-
-    def get_vid(self):
-        """ Puts all frames into an array """
+    def get_vid(self) -> list:
+        """Puts all frames into an array
+        
+        :returns: frames - list containing each frame from the '.mp4' file
+        """
         logging.info("Reading video...")
         logging.info("This takes a minute or two...")
         frames = []
-        cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")#, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")
 
         # Check if camera opened successfully
         if cap.isOpened() is False:
             logging.info("Error opening video stream or file")
-        
+
         # Read until video is completed
         while cap.isOpened():
-            # Capture frame-by-frame
-            ret, frame = cap.read()
+            ret, frame = cap.read()     # Capture frame-by-frame
             if ret is True:
-                # Display the resulting frame
-                frame = self.resize_img(frame, .25)     # TODO: make resizing variable
+                if self.scale != 1:
+                    frame = self.resize_img(frame, self.scale)
+
                 frames.append(frame)
             else:
                 break
 
-        logging.info(f"Video length = {len(frames)} frames")
-        
+        logging.info("Video length = %d frames", len(frames))
+
         cap.release()
         return frames
 
-    def play_vid(self):
-        """ Plays the frames in order """
+    def play_vid(self) -> None:
+        """Plays the frames on loop in order
+        
+        Plays at about 30 frames per second by default
+        Press 'q' to exit
+        """
         logging.info("Playing video...")
         stop = False
         while not stop:
-            i = 0
-            while i < len(self.FRAME_ARR):
-                # logging.info("Frame %d, %d.%d seconds", i, int(i/30), i%30)
-                cv2.imshow('Frame', self.FRAME_ARR[i])
-            # for i, frame in enumerate(self.FRAME_ARR):
-            #     logging.info(f"Frame {i}, ", str(int(i/30)) + "." + str(i%30), "seconds")
-            #     cv2.imshow('Frame',frame)
-                i += 1
+            for mrk, frame in enumerate(self.frame_arr):
+                # logging.info("Frame %d, %d.%d seconds", mrk, int(mrk/30), mrk%30)
+                cv2.imshow('Frame',frame)
+
                 # Press Q on keyboard to  exit
                 if cv2.waitKey(3) & 0xFF == ord('q'):
                     stop = True
                     break
 
-    def select_frames(self, start, end, interval):
-        """ logging.info out selected frames """
-        i = start
-        while i <= end:
-            cv2.imwrite(f"{self.path}/frames/frame{i}.jpg", self.FRAME_ARR[i])
-            i += interval
+    def select_frames(self, start=0, end=1, interval=1) -> None:
+        """Outputs a selection of frames to a subdirectory './frames'
+        
+        :param start: initial frame for selection
+        :param end: final frame in selection
+        :param interval: amount of frames to increment per output image
+        """
+        mrk = start
+        while mrk <= end:
+            cv2.imwrite(f"{self.path}/frames/frame{mrk}.jpg", self.frame_arr[mrk])
+            mrk += interval
 
-    def resize_img(self, img, scale):
+    def resize_img(self, img: npt.NDArray[Any], scale: float) -> npt.NDArray[Any]:
+        """Scales the image by a given ratio
+
+        :param img: numpy image - original to be modified
+        :param scale: float - the percentage by which the image will be expanded or compressed
+        :returns: scaled_img - the modified image
         """
-        Scales the image by the ratio passed in scale
-        """
-        w1 = img.shape[1]
-        h1 = img.shape[0]
-        w2 = int(w1 * scale)
-        h2 = int(h1 * scale)
-        new_dim = (w2, h2)
-        return cv2.resize(img, new_dim, interpolation=cv2.INTER_AREA)
+        w_1 = img.shape[1]
+        h_1 = img.shape[0]
+
+        w_2 = int(w_1 * scale)
+        h_2 = int(h_1 * scale)
+
+        new_dim = (w_2, h_2)
+
+        scaled_img = cv2.resize(img, new_dim, interpolation=cv2.INTER_AREA)
+        return scaled_img
 
 
 if __name__ == "__main__":
-    path = filedialog.askdirectory()
-    vid = VidClass(path)
+    pth = filedialog.askdirectory()
+    vid = VidClass(path=pth, scale=.25)
 
     logging.info("Previewing Video frames...")
     vid.play_vid()
 
-    a = -1
-    b = -1
-    i = -1
-    while a < 0:
+    A = -1
+    B = -1
+    IN = -1
+    while A < 0:
         try:
-            a = int(input("start frame: "))
-        except:
+            A = int(input("start frame: "))
+        except ValueError:
             logging.info("enter an int!")
-            a = -1
-    while b < 0:
+            A = -1
+    while B < 0:
         try:
-            b = int(input("end frame: "))
-        except:
+            B = int(input("end frame: "))
+        except ValueError:
             logging.info("enter an int!")
-            b = -1
-    while i < 0:
+            B = -1
+    while IN < 0:
         try:
-            i = int(input("interval: "))
-        except:
+            IN = int(input("interval: "))
+        except ValueError:
             logging.info("enter an int!")
-            i = -1
-    vid.select_frames(a, b, i)
+            IN = -1
+    vid.select_frames(A, B, IN)
     
     cv2.destroyAllWindows()

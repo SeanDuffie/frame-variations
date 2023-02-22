@@ -3,6 +3,9 @@ Python Script intended to apply a selection of modifications to a selected image
 generating many variations of the same image to see what effect is had on facial recognition
 
 This will be done in batch on a large selection of files
+TODO: Should the program clear the output directories before running?
+TODO: Graypoint calculation
+TODO: Merge white_balance and hue_sat into an hsv function
 """
 import logging
 import os
@@ -21,10 +24,13 @@ FACE = False    # Should it search for faces?
 PREV = False     # Display output to screen
 OUT = True      # Write output to a jpg file
 
+# NOTE: If the resolution is too high and not downscaled, the program will run slowly
+RESIZE = .25      # Factor to resize frames by? (1 skips calculation, must be greater than 0)
+
 
 class ImgMod:
     """Applied image modifications automatically in bulk"""
-    def __init__(self):
+    def __init__(self) -> None:
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
@@ -37,45 +43,48 @@ class ImgMod:
         # Source Image Array
         self.img_arr = {}
 
-    def acquire_frames(self) -> None:
+    def acquire_frames(self, s_f=-1, e_f=-1, i=-1) -> None:
+        """Pick out frames from a video
+
+        This file will preview the video on loop (if requested) to the user
+        Then prompt them to select what range of frames should be output
         """
-        Pick out frames from a video
-        """
-        video = VidClass(self.path)
+        video = VidClass(path=self.path, scale=RESIZE)
 
         if PREV:
             logging.info("Previewing Video frames...")
             video.play_vid()
 
-        a = -1
-        b = -1
-        i = -1
-        while a < 0:
+        # print(len(self.img_arr))
+        # Prompt the user for their frame selection
+        while s_f < 0:# or s_f > len(self.img_arr):
             try:
-                a = int(input("start frame: "))
+                s_f = int(input("Start Frame: "))
             except ValueError:
                 logging.info("enter an int!")
-                a = -1
-        while b < a:
+                s_f = -1
+        while e_f < s_f:# or e_f > len(self.img_arr):
             try:
-                b = int(input("end frame: "))
+                e_f = int(input("End Frame: "))
             except ValueError:
                 logging.info("enter an int!")
-                b = -1
+                e_f = -1
         while i < 1:
             try:
-                i = int(input("interval: "))
+                i = int(input("Interval between Frames: "))
             except ValueError:
                 logging.info("enter an int!")
                 i = -1
-        video.select_frames(a, b, i)
-        
+
+        # Write the frames to the frames directory
+        video.select_frames(s_f, e_f, i)
+
         cv2.destroyAllWindows()
 
     def parse_dir(self) -> None:
-        """ Parses a directory of images and calls the function to modify images """
+        """Parses a directory of frames and reads in images to a list"""
         frame_dir = self.path + "/frames/"
-        
+
         for file_name in os.listdir(frame_dir):
             # check if the image ends with png or jpg or jpeg
             if (file_name.endswith(".png") or file_name.endswith(".jpg")\
@@ -91,100 +100,119 @@ class ImgMod:
 
         return 0
 
-    def find_faces(self, img) -> list:
-        """ detect faces """
-        faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")      # Create the haar cascade
-        ##########   FACES   ##########
+    def find_faces(self, img: npt.NDArray[Any]) -> list:
+        """Scans an image for faces
+
+        :param img: input image to be scanned
+        :returns: faces - an array of tuples (x, y, width, height) where a face was detected
+        """
+        # Convert to Greyscale
+        gry = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Create the haar cascade
+        face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+
         # Detect faces in the image
-        gry = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)                                     # Greyscale
-        faces = faceCascade.detectMultiScale(
+        faces = face_cascade.detectMultiScale(
             gry,
             scaleFactor=1.1,
             minNeighbors=5,
             minSize=(30, 30),
-            flags = cv2.CASCADE_SCALE_IMAGE #flags =cv2.cv.CV_HAAR_SCALE_IMAGE
+            flags = cv2.CASCADE_SCALE_IMAGE
         )
-        ########   END FACES   ########
+
         return faces
 
-    def auto_balance(self, img):
-        """ automatically acquire the brightest and darkest point on the face """
+    def auto_balance(self, img: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Automatically acquires the brightest and darkest points on the face
+
+        Currently this is accomplished by locating the brightest and darkest points in the image,
+        and adjusting the black and white points accordingly.
+
+        NOTE: For best results, ensure that the input is cropped as tightly as possible around face
+
+        :param img: input image, this will usually already be cropped around an identified face
+        :returns: b_p - the automatic blackpoint
+        :returns: w_p - the automatic whitepoint
+        :returns: bal_img - the modified image
+        """
         # Convert to HSV and split
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         h,s,v = cv2.split(hsv)
 
+        # Identify the Black and White points automatically
         bp = np.min(v)
         wp = np.max(v)
 
-        bal_img = self.bri_con(cur_img=img, b=bp, w=wp)
+        # Produce an adjusted image
+        bal_img = self.white_balance(cur_img=img, b_p=bp, w_p=wp)
 
         cv2.imshow("fc", bal_img)                # Show auto balanced
 
         return bal_img
 
-    def bri_con(self, cur_img, b=0, w=0, g=0) -> npt.NDArray[Any]:
-        """
-        Adjust the brightness/contrast of the image by modifying the blackpoint, whitepoint, and greypoint
+    def white_balance(self, cur_img: npt.NDArray[Any], b_p=0, w_p=0, g_p=0) -> npt.NDArray[Any]:
+        """Adjust the white balance of the image
+
+        Accomplished by modifying the blackpoint, whitepoint, and greypoint.
 
         :param cur_img: input BGR pixel array
-        :param b: black point - this value and anything below it will be set to zero
-        :param w: white point - this value and anything below it will be set to 255
+        :param b_p: black point - this value and anything below it will be set to zero
+        :param w_p: white point - this value and anything below it will be set to 255
+        :param g_p: gray point - *NOT YET IMPLEMENTED*
 
-        TODO: How do I change greypoint???
+        TODO: Add graypoint into calculation
         """
         # Convert to HSV and split
         hsv_img = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
         h,s,v = cv2.split(hsv_img)
 
-        # Modify value channel by clipping at the black and white points
-        # subtracting the black point
-        # and scaling the whole thing so that the new white point is 255
-        scale = (w-b)/255
-        c_v = np.clip(v, b, w) - b              # Clipped Values
-        s_v = c_v / scale                   # Scaled Values
-        
-        logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
+        # Modify value channel by clipping, subtracting, and scaling
+        scale = (w_p-b_p)/255
+        v_new = np.clip(v, b_p, w_p) - b_p         # Clipped/Subtracted Values
+        v_new = (v_new / scale).astype(np.uint8)      # Scaled Values
+
+        # logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
         
         # Recombine channels
-        hsv_new = cv2.merge([h,s,s_v.astype(np.uint8)])
+        hsv_new = cv2.merge([h,s,v_new])
 
         # Convert back to bgr
         n_img = cv2.cvtColor(hsv_new, cv2.COLOR_HSV2BGR)
 
         return n_img
 
-    def hue_sat(self, cur_img, hmod=0, smod=0, vmod=0) -> npt.NDArray[Any]:
-        """
-        Modifies the Hue and Saturation of an Image
+    def hue_sat(self, cur_img: npt.NDArray[Any], hmod=0, smod=0) -> npt.NDArray[Any]:
+        """Modifies the Hue and Saturation of an Image
+
+        Hue will loop if it overflows past the maximum or minimum
+        Saturation will cap if it reaches a maximum or minimum value
 
         :param cur_img: input BGR pixel array
-        :param hmod: hue offset - all hue values will be incremented by this number (overflow loops)
-        :param smod: saturation percentage - all saturation values will be **scaled** by this **percentage** (overflow loops)
-        :param vmod: value offset - all values will be incremented by this number (overflow loops)
+        :param hmod: hue offset - all hue values will be *incremented* by this number
+        :param smod: saturation percentage - all saturation values will be *scaled* by this percentage
+        REMOVE: :param vmod: value offset - all values will be *incremented* by this number
         """
         # Convert to HSV and split
         hsv = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
         h,s,v = cv2.split(hsv)
 
-        # logging.info("Saturation:", hsv[:,:,1].mean())
-
         # Modify channels by adding difference and modulo 180
-        hnew = np.mod(h + hmod, 180).astype(np.uint8)
-        snew = s*(1+(smod-1)/100)
-        snew = np.clip(snew.astype(np.uint8), 0, 255)
-        vnew = np.mod(v + vmod, 256).astype(np.uint8)
-        
+        h_new = np.mod(h + hmod, 180).astype(np.uint8)
+        s_new = s*(1+(smod-1)/100)
+        s_new = np.clip(s_new.astype(np.uint8), 0, 255)
+
         # Recombine channels
-        hsv_new = cv2.merge([hnew,snew,vnew])
+        hsv_new = cv2.merge([h_new,s_new,v])
 
         # Convert back to bgr
         n_img = cv2.cvtColor(hsv_new, cv2.COLOR_HSV2BGR)
 
         return n_img
 
-    def color_mod(self, cur_img, b_scale, g_scale, r_scale) -> npt.NDArray[Any]:
-        """
-        Adjusts the Intensity of each BGR value individually
+    def color_mod(self, cur_img: npt.NDArray[Any], b_scale: float,
+                    g_scale: float, r_scale: float) -> npt.NDArray[Any]:
+        """Adjusts the Intensity of each BGR value individually
 
         :param cur_img: input BGR pixel array
         :param b_scale: percentage value to scale blue pixels
@@ -192,7 +220,7 @@ class ImgMod:
         :param r_scale: percentage value to scale red pixels
         """
         b,g,r = cv2.split(cur_img)
-        
+
         b = b * b_scale
         g = g * g_scale
         r = r * r_scale
@@ -202,49 +230,69 @@ class ImgMod:
         r = np.clip(r, 0, 255)
 
         n_img = cv2.merge([b,g,r])
-        
+
         return n_img
 
-    def write_file(self, mod, name, img) -> None:
+    def write_file(self, mod: str, name: str, img: npt.NDArray[Any]) -> None:
+        """Writes the input image to a file
+
+        This is necessary to organize the output files into different directories
+        If the directory does not currently exist, it will be created
+
+        :param mod: str - name of the modification, it will have a its own directory
+        :param name: str - name of the input image, it will also be the output name (e.g frame27)
+        :param img: modified image that will be saved
+        """
         if not os.path.exists(self.path + mod):
             os.mkdir(self.path + mod)
         cv2.imwrite(self.path + mod + name, img)
 
     def run(self) -> None:
-        """ Main Class Runner """
+        """Main Class Runner
+
+        This is where most of the actual process will occur
+        If any changes are needed by the end user, they will likely be done here
+        """
+        ##########   START LOAD IMAGES   ##########
         self.acquire_frames()
         self.parse_dir()
 
         for file_name, cur_img in self.img_arr.items():
             if FACE:
+                ##########   START FACES   ##########
                 logging.info("Finding faces...")
                 faces = self.find_faces(img=cur_img)
+
                 if len(faces) == 0:
                     logging.info("No faces!")
                     continue
-                else:
-                    logging.info("%d faces found!", len(faces))
-                    # Draw a rectangle around the faces
-                    cropped = cur_img
-                    for (x, y, w, h) in faces:
-                        cropped = cur_img[y:y+h, x:x+w]
-                        cv2.imshow("cropped", cropped)
-                        logging.info("Press 'c' to confirm. Any other button skips.")
-                        if cv2.waitKey(0) & 0xFF == ord('c'):
-                            # logging.info(x, w, y, h)
-                            auto = self.auto_balance(cropped)         # Auto
-                            cv2.rectangle(cur_img, (x, y), (x+w, y+h), (255, 255, 255), 2)
-                            self.write_file("/auto/", file_name, auto)
+
+                logging.info("%d faces found!", len(faces))
+                # Draw a rectangle around the faces
+                cropped = cur_img
+                for (x, y, w, h) in faces:
+                    cropped = cur_img[y:y+h, x:x+w]
+                    cv2.imshow("cropped", cropped)
+                    logging.info("Press 'c' to confirm. Any other button skips.")
+                    if cv2.waitKey(0) & 0xFF == ord('c'):
+                        # logging.info(x, w, y, h)
+                        auto = self.auto_balance(cropped)         # Auto
+                        cv2.rectangle(cur_img, (x, y), (x+w, y+h), (255, 255, 255), 2)
+                        self.write_file("/auto/", file_name, auto)
+                ########   END FACES   ########
 
             cv2.imshow("original", cur_img)     # Show Original
+            #########    END LOAD IMAGES    #########
+
+
+            # NOTE: IF ANY ADJUSTMENTS ARE NEEDED, THEY WILL LIKELY BE IN THE 2-3 FOLLOWING SECTIONS
             ########## ADJUSTMENTS ##########
             # Brightness/Contrast using Black and White points
-            # TODO: Add grey point
-            fc_1 = self.bri_con(cur_img, 0, 190)
-            fc_2 = self.bri_con(fc_1, 0, 200)
-            fc_3 = self.bri_con(fc_2, 50, 200)
-            fc_12_220 = self.bri_con(cur_img, 12, 220)
-            fc_24_185 = self.bri_con(cur_img, 24, 185)
+            fc_1 = self.white_balance(cur_img, 0, 190)
+            fc_2 = self.white_balance(fc_1, 0, 200)
+            fc_3 = self.white_balance(fc_2, 50, 200)
+            fc_12_220 = self.white_balance(cur_img, 12, 220)
+            fc_24_185 = self.white_balance(cur_img, 24, 185)
 
             # Hue/Saturation
             low_sat_45 = self.hue_sat(fc_24_185, 45, 1)
@@ -311,27 +359,16 @@ class ImgMod:
             ##########   END FILE OUTPUT   ##########
 
 
-    def resize_img(self, img, scale):
-        """
-        Scales the image by the ratio passed in scale
-        """
-        w1 = img.shape[1]
-        h1 = img.shape[0]
-        w2 = int(w1 * scale)
-        h2 = int(h1 * scale)
-        new_dim = (w2, h2)
-        return cv2.resize(img, new_dim, interpolation=cv2.INTER_AREA)
+    # def pixel_print(self, name: str, cur_img: npt.NDArray[Any]) -> None:
+    #     """
+    #     Debugging Pixel Values
+    #     """
+    #     hsv = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
+    #     b,g,r = cv2.split(cur_img)
+    #     h,s,v = cv2.split(hsv)
 
-    def pixel_print(self, name: str, cur_img) -> None:
-        """
-        Debugging Pixel Values
-        """
-        hsv = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
-        b,g,r = cv2.split(cur_img)
-        h,s,v = cv2.split(hsv)
-
-        logging.info(name + ":")
-        logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
+    #     logging.info("%s: ", name)
+    #     logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
 
 
 if __name__ == "__main__":
