@@ -110,7 +110,7 @@ class ImgMod:
         gry = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Create the haar cascade
-        face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+        face_cascade = cv2.CascadeClassifier("resources/haarcascade_frontalface_default.xml")
 
         # Detect faces in the image
         faces = face_cascade.detectMultiScale(
