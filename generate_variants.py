@@ -56,6 +56,7 @@ class ImgMod:
             video.play_vid()
 
         # print(len(self.img_arr))
+
         # Prompt the user for their frame selection
         while s_f < 0:# or s_f > len(self.img_arr):
             try:
@@ -97,8 +98,6 @@ class ImgMod:
                     exit(0)
 
                 self.img_arr[file_name] = img
-
-        return 0
 
     def find_faces(self, img: npt.NDArray[Any]) -> list:
         """Scans an image for faces
@@ -173,7 +172,7 @@ class ImgMod:
         v_new = (v_new / scale).astype(np.uint8)      # Scaled Values
 
         # logging.info("\tOriginal = (%d, %d)", np.min(v), np.max(v))
-        
+
         # Recombine channels
         hsv_new = cv2.merge([h,s,v_new])
 
@@ -190,8 +189,8 @@ class ImgMod:
 
         :param cur_img: input BGR pixel array
         :param hmod: hue offset - all hue values will be *incremented* by this number
-        :param smod: saturation percentage - all saturation values will be *scaled* by this percentage
-        REMOVE: :param vmod: value offset - all values will be *incremented* by this number
+        :param smod: saturation percentage - saturation values will be *scaled* by this percentage
+        REMOVE: :param vmod: value offset - values will be *incremented* by this number
         """
         # Convert to HSV and split
         hsv = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
@@ -312,17 +311,17 @@ class ImgMod:
                 cv2.imshow("low_sat", low_sat_180)
                 cv2.imshow("high_sat", high_sat_180)
                 # cv2.waitKey(0)
-                
+
                 # 60 Hue
                 cv2.imshow("low_sat", low_sat_45)
                 cv2.imshow("high_sat", high_sat_45)
                 # cv2.waitKey(0)
-                
+
                 # 120 Hue
                 cv2.imshow("low_sat", low_sat_90)
                 cv2.imshow("high_sat", high_sat_90)
                 # cv2.waitKey(0)
-                
+
                 # 150 Hue
                 cv2.imshow("low_sat", low_sat_135)
                 cv2.imshow("high_sat", high_sat_135)
@@ -333,7 +332,7 @@ class ImgMod:
                 # cv2.imshow("blue", color_mod(cur_img, 1, 0, 0))
                 # cv2.imshow("green", color_mod(cur_img, 0, 1, 0))
                 # cv2.imshow("red", color_mod(cur_img, 0, 0, 1))
-        
+
                 cv2.destroyAllWindows()
             ##########   END DISPLAY   ##########
 

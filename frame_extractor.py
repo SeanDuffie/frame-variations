@@ -28,7 +28,7 @@ class VidClass:
 
     def get_vid(self) -> list:
         """Puts all frames into an array
-        
+
         :returns: frames - list containing each frame from the '.mp4' file
         """
         logging.info("Reading video...")
@@ -58,7 +58,7 @@ class VidClass:
 
     def play_vid(self) -> None:
         """Plays the frames on loop in order
-        
+
         Plays at about 30 frames per second by default
         Press 'q' to exit
         """
@@ -76,7 +76,7 @@ class VidClass:
 
     def select_frames(self, start=0, end=1, interval=1) -> None:
         """Outputs a selection of frames to a subdirectory './frames'
-        
+
         :param start: initial frame for selection
         :param end: final frame in selection
         :param interval: amount of frames to increment per output image
@@ -134,5 +134,5 @@ if __name__ == "__main__":
             logging.info("enter an int!")
             IN = -1
     vid.select_frames(A, B, IN)
-    
+
     cv2.destroyAllWindows()
