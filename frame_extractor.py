@@ -75,7 +75,7 @@ class VidClass:
                     break
 
     def select_frames(self, start=0, end=1, interval=1) -> None:
-        """Outputs a selection of frames to a subdirectory './frames'
+        """Outputs a selection of frames to a subdirectory './1_orig_frames'
 
         :param start: initial frame for selection
         :param end: final frame in selection
@@ -83,7 +83,7 @@ class VidClass:
         """
         mrk = start
         while mrk <= end:
-            cv2.imwrite(f"{self.path}/frames/frame{mrk}.jpg", self.frame_arr[mrk])
+            cv2.imwrite(f"{self.path}/1_orig_frames/frame{mrk}.jpg", self.frame_arr[mrk])
             mrk += interval
 
     def resize_img(self, img: npt.NDArray[Any], scale: float) -> npt.NDArray[Any]:
