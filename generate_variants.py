@@ -3,9 +3,8 @@ Python Script intended to apply a selection of modifications to a selected image
 generating many variations of the same image to see what effect is had on facial recognition
 
 This will be done in batch on a large selection of files
-TODO: Should the program clear the output directories before running?
 TODO: Graypoint calculation
-TODO: Merge white_balance and hue_sat into an hsv function
+TODO: Adjust the auto balance by Stoian's suggestion (max of min/max of max)
 """
 import logging
 import os
@@ -31,7 +30,7 @@ RESIZE = .25      # Factor to resize frames by? (1 skips calculation, must be gr
 
 
 class ImgMod:
-    """Applied image modifications automatically in bulk"""
+    """Applies image modifications automatically in bulk"""
     def __init__(self) -> None:
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
@@ -44,7 +43,7 @@ class ImgMod:
         # Source Image Array
         self.img_arr = {}
 
-    def clean_setup(self):
+    def clean_setup(self) -> None:
         """Sets up a fresh environment
         Relies on the "FRESH" and "VIDEO" flags
 
