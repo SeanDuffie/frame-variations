@@ -5,6 +5,7 @@ generating many variations of the same image to see what effect is had on facial
 This will be done in batch on a large selection of files
 TODO: Graypoint calculation
 TODO: Adjust the auto balance by Stoian's suggestion (max of min/max of max)
+FIXME: Naming convention for frames cause 90 to be seen as higher than 100, do 90 -> 090 instead
 """
 import logging
 import os
@@ -19,11 +20,12 @@ import numpy.typing as npt
 from frame_extractor import VidClass
 
 ### FLAGS ###
-FACE = False     # Should it search for faces?
-PREV = False     # Display output to screen
-OUT = True      # Write output to a jpg file
-FRESH = True    # Removes all existing generated frames
-VIDEO = False    # Set false to skip reading in the video, runtime is much faster without
+FACE = False            # Should it search for faces?
+PREV = False            # Display output to screen
+OUT = True             # Write output to a jpg file
+FRESH = True           # Removes all existing generated frames
+VIDEO = True           # Set false to skip reading in the video, runtime is much faster without
+MANUAL_FRAMES = False   # Set true if you want to manually pick the start, end, and interval
 
 # NOTE: If the resolution is too high and not downscaled, the program will run slowly
 RESIZE = .25      # Factor to resize frames by? (1 skips calculation, must be greater than 0)
@@ -31,13 +33,17 @@ RESIZE = .25      # Factor to resize frames by? (1 skips calculation, must be gr
 
 class ImgMod:
     """Applies image modifications automatically in bulk"""
-    def __init__(self) -> None:
+    def __init__(self, path="") -> None:
         # Initial Logger Settings
         fmt_main = "%(asctime)s | main\t\t: %(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
 
-        self.path = filedialog.askdirectory()
+        self.path = path
+        while self.path == "":          # FIXME: How do we want to do this? Loop or exit?
+            self.path = filedialog.askdirectory()
+            logging.error("Error: No path specified! Exiting...")
+            sys.exit(1)
         self.clean_setup()
 
         # Source Image Array
@@ -56,7 +62,7 @@ class ImgMod:
         """
         vid_found = 0
         if not VIDEO:
-            logging.info("Using old frames!")
+            logging.info("Using old frames! If this is a new directory then please set global 'VIDEO' to true")
 
         for file_name in os.listdir(self.path):
             f = os.path.join(self.path, file_name)
@@ -83,10 +89,10 @@ class ImgMod:
             os.mkdir(self.path + "/3_auto")
 
         if vid_found == 0:
-            logging.error("No videos found")
+            logging.error("Error: No videos found")
             sys.exit(1)
         elif vid_found > 1:
-            logging.error("Multiple videos found")
+            logging.error("Error: Multiple videos found")
             sys.exit(1)
 
     def acquire_frames(self, s_f=-1, e_f=-1, i=-1) -> None:
@@ -97,42 +103,44 @@ class ImgMod:
         """
         video = VidClass(path=self.path, scale=RESIZE)
 
-        if len(self.img_arr) == 0:
-            logging.warning("Issue Reading Video: %d frames", len(self.img_arr))
+        if len(video.frame_arr) == 0:
+            logging.warning("Issue Reading Video: %d frames", len(video.frame_arr))
 
         if PREV:
             logging.info("Previewing Video frames...")
             video.play_vid()
 
         ## DEBUG
-        s_f = 350
-        e_f = 440
+        s_f = 0
+        e_f = len(video.frame_arr) - 1
         i = 10
 
-        # Prompt the user for their frame selection
-        while s_f < 0:# or s_f > len(self.img_arr):
-            try:
-                s_f = int(input("Start Frame: "))
-            except ValueError:
-                logging.info("enter an int!")
-                s_f = -1
-        while e_f < s_f:# or e_f > len(self.img_arr):
-            try:
-                e_f = int(input("End Frame: "))
-            except ValueError:
-                logging.info("enter an int!")
-                e_f = -1
-        while i < 1:
-            try:
-                i = int(input("Interval between Frames: "))
-            except ValueError:
-                logging.info("enter an int!")
-                i = -1
+
+        if MANUAL_FRAMES:
+            e_f = 0
+            # Prompt the user for their frame selection
+            while s_f < 0 or s_f >= len(video.frame_arr) - 1:
+                try:
+                    s_f = int(input("Start Frame: "))
+                except ValueError:
+                    logging.warning("enter an int!")
+                    s_f = -1
+            while e_f < s_f or e_f >= len(video.frame_arr):
+                try:
+                    e_f = int(input("End Frame: "))
+                except ValueError:
+                    logging.warning("enter an int!")
+                    e_f = -1
+            while i < 1:
+                try:
+                    i = int(input("Interval between Frames: "))
+                except ValueError:
+                    logging.warning("enter an int!")
+                    i = -1
 
         # Write the frames to the frames directory
         video.select_frames(s_f, e_f, i)
 
-        cv2.destroyAllWindows()
 
     def parse_dir(self) -> None:
         """Parses a directory of frames and reads in images to a list"""
