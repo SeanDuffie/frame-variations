@@ -63,16 +63,19 @@ class VidClass:
         Press 'q' to exit
         """
         logging.info("Playing video...")
-        stop = False
-        while not stop:
+        loop = True
+
+        while loop:
             for mrk, frame in enumerate(self.frame_arr):
                 # logging.info("Frame %d, %d.%d seconds", mrk, int(mrk/30), mrk%30)
                 cv2.imshow('Frame',frame)
 
                 # Press Q on keyboard to  exit
                 if cv2.waitKey(3) & 0xFF == ord('q'):
-                    stop = True
+                    loop = True
                     break
+
+        cv2.destroyAllWindows()
 
     def select_frames(self, start=0, end=1, interval=1) -> None:
         """Outputs a selection of frames to a subdirectory './1_orig_frames'
@@ -103,36 +106,3 @@ class VidClass:
 
         scaled_img = cv2.resize(img, new_dim, interpolation=cv2.INTER_AREA)
         return scaled_img
-
-
-if __name__ == "__main__":
-    pth = filedialog.askdirectory()
-    vid = VidClass(path=pth, scale=.25)
-
-    logging.info("Previewing Video frames...")
-    vid.play_vid()
-
-    A = -1
-    B = -1
-    IN = -1
-    while A < 0:
-        try:
-            A = int(input("start frame: "))
-        except ValueError:
-            logging.info("enter an int!")
-            A = -1
-    while B < 0:
-        try:
-            B = int(input("end frame: "))
-        except ValueError:
-            logging.info("enter an int!")
-            B = -1
-    while IN < 0:
-        try:
-            IN = int(input("interval: "))
-        except ValueError:
-            logging.info("enter an int!")
-            IN = -1
-    vid.select_frames(A, B, IN)
-
-    cv2.destroyAllWindows()
