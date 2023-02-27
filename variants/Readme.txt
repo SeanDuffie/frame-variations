@@ -1,0 +1,1 @@
+This folder is where all videos will be placed, simply place the video in here 
