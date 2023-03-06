@@ -21,7 +21,7 @@ from frame_extractor import VidClass
 
 ### FLAGS ###
 FACE = False            # Should it search for faces?
-PREV = False            # Display output to screen
+PREV = True            # Display output to screen
 OUT = True             # Write output to a jpg file
 FRESH = True           # Removes all existing generated frames
 VIDEO = True           # Set false to skip reading in the video, runtime is much faster without

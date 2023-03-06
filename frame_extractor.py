@@ -72,7 +72,7 @@ class VidClass:
 
                 # Press Q on keyboard to  exit
                 if cv2.waitKey(3) & 0xFF == ord('q'):
-                    loop = True
+                    loop = False
                     break
 
         cv2.destroyAllWindows()

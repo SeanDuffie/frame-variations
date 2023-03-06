@@ -32,9 +32,9 @@ def main():
         rel_path = "./variants/" + file_name
         if file_name == "Readme.txt":
             continue
-        elif os.path.isdir(rel_path):
+        if os.path.isdir(rel_path):
             continue
-        elif file_name.endswith(".mp4"):
+        if file_name.endswith(".mp4"):
             new_dir = file_name[0:len(file_name)-4]
             if not os.path.exists("./variants/" + new_dir):
                 os.mkdir("./variants/" + new_dir)
