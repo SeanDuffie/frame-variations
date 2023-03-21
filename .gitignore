@@ -1,5 +1,7 @@
 # Directories
 variants/*
+overlay/*
+Basler/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
