@@ -11,11 +11,9 @@ import logging
 import os
 import sys
 from tkinter import filedialog
-from typing import Any
 
 import cv2
 import numpy as np
-import numpy.typing as npt
 
 from frame_extractor import VidClass
 
@@ -35,13 +33,14 @@ class ImgMod:
     """Applies image modifications automatically in bulk"""
     def __init__(self, path="") -> None:
         # Initial Logger Settings
-        fmt_main = "%(asctime)s | main\t\t: %(message)s"
+        fmt_main = "%(asctime)s | ImgMod:\t%(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
 
         self.path = path
-        while self.path == "":          # FIXME: How do we want to do this? Loop or exit?
+        if self.path == "":
             self.path = filedialog.askdirectory()
+        if self.path == "":          # FIXME: How do we want to do this? Loop or exit?
             logging.error("Error: No path specified! Exiting...")
             sys.exit(1)
         self.clean_setup()
@@ -103,9 +102,6 @@ class ImgMod:
         """
         video = VidClass(path=self.path, scale=RESIZE)
 
-        if len(video.frame_arr) == 0:
-            logging.warning("Issue Reading Video: %d frames", len(video.frame_arr))
-
         if PREV:
             logging.info("Previewing Video frames...")
             video.play_vid()
@@ -159,7 +155,7 @@ class ImgMod:
 
                 self.img_arr[file_name] = img
 
-    def find_faces(self, gry_img: npt.NDArray[Any]) -> list:
+    def find_faces(self, gry_img) -> list:
         """Scans an image for faces
 
         :param img: input image to be scanned
@@ -179,7 +175,7 @@ class ImgMod:
 
         return faces
 
-    def auto_balance(self, img: npt.NDArray[Any]) -> tuple:
+    def auto_balance(self, img) -> tuple:
         """Automatically acquires the brightest and darkest points on the face
 
         Currently this is accomplished by locating the brightest and darkest points in the image,
@@ -202,8 +198,7 @@ class ImgMod:
 
         return b_p, w_p
 
-    def adjust(self, cur_img: npt.NDArray[Any], fname: str, mod_name = "", color=(0, 1),
-                                                        balance = (0, 255)) -> npt.NDArray[Any]:
+    def adjust(self, cur_img, fname: str, mod_name = "", color=(0, 1), balance = (0, 255)):
         """Adjust the white balance and hue/saturation of the image at the same time
 
         Accomplished by modifying the blackpoint, whitepoint, and graypoint.
@@ -329,8 +324,7 @@ class ImgMod:
         ##########    END IMAGE MODS    ##########
 
 
-    # def color_mod(self, cur_img: npt.NDArray[Any], b_scale: float,
-    #                 g_scale: float, r_scale: float) -> npt.NDArray[Any]:
+    # def color_mod(self, cur_img, b_scale: float, g_scale: float, r_scale: float):
     #     """Adjusts the Intensity of each BGR value individually
 
     #     :param cur_img: input BGR pixel array
