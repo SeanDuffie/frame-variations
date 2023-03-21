@@ -2,11 +2,8 @@
 """
 import logging
 import os
-from tkinter import filedialog
-from typing import Any
 
 import cv2
-import numpy.typing as npt
 
 
 class VidClass:
@@ -18,7 +15,7 @@ class VidClass:
             this should be a directory with a single video in it, which both have the same name
         """
         # Initial Logger Settings
-        fmt_main = "%(asctime)s | main\t\t: %(message)s"
+        fmt_main = "%(asctime)s | VidClass:\t%(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
         self.path = path
@@ -51,7 +48,10 @@ class VidClass:
             else:
                 break
 
-        logging.info("Video length = %d frames", len(frames))
+        if len(frames) == 0:
+            logging.warning("Issue Reading Video...")
+        else:
+            logging.info("Video length = %d frames", len(frames))
 
         cap.release()
         return frames
@@ -76,6 +76,9 @@ class VidClass:
                     break
 
         cv2.destroyAllWindows()
+    
+    def get_frames(self):
+        return self.frame_arr
 
     def select_frames(self, start=0, end=1, interval=1) -> None:
         """Outputs a selection of frames to a subdirectory './1_orig_frames'
@@ -89,7 +92,7 @@ class VidClass:
             cv2.imwrite(f"{self.path}/1_orig_frames/frame{mrk}.jpg", self.frame_arr[mrk])
             mrk += interval
 
-    def resize_img(self, img: npt.NDArray[Any], scale: float) -> npt.NDArray[Any]:
+    def resize_img(self, img, scale: float):
         """Scales the image by a given ratio
 
         :param img: numpy image - original to be modified
