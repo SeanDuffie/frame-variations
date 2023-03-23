@@ -15,21 +15,16 @@ class VidCompile:
 
         # Obtain frames to go into the overlayed image
         self.frame_arr = []
-        self.read_video(start=0, stop=-1, step=1)
-        # Debugging code with images I made in MSpaint
-        # self.frame_arr.append(cv2.imread("./overlay/box1.png", cv2.IMREAD_UNCHANGED))
-        # self.frame_arr.append(cv2.imread("./overlay/box2.png", cv2.IMREAD_UNCHANGED))
-        # self.frame_arr.append(cv2.imread("./overlay/box3.png", cv2.IMREAD_UNCHANGED))
-        # self.frame_arr.append(cv2.imread("./overlay/box4.png", cv2.IMREAD_UNCHANGED))
+        self.read_video()
 
         # Determine Maximum Brightness Threshold
         self.thresh = 127
-        self.choose_thresh(self.frame_arr[0])
+        self.choose_thresh()
         cv2.destroyAllWindows()
 
         # Generate initial background image
         self.output = np.zeros(self.frame_arr[0].shape, dtype=np.uint8)
-        self.output.fill(self.thresh+50)
+        self.output.fill(self.thresh+75)
 
         # Overlay each of the selected frames onto the output image
         for i, im in enumerate(self.frame_arr):
@@ -39,9 +34,10 @@ class VidCompile:
             cv2.waitKey(1)
 
         # Display the final results and output to file
-        # cv2.imshow("output", self.output)
+        # TODO: Adjust directory naming convention
+        cv2.imwrite("overlay.png", self.output)
+        logging.info("Finished! Press any key to end and write to file")
         cv2.waitKey()
-        cv2.imwrite("./overlay/final-long.png", self.output)
 
     def read_video(self, start=0, stop=-1, step=1):
         """ Read in individual frames from the video
@@ -54,7 +50,8 @@ class VidCompile:
             - None
         """
         logging.debug("Reading video...")
-        cap = cv2.VideoCapture("./Basler/Basler.mp4")
+        filename = filedialog.askopenfilename()
+        cap = cv2.VideoCapture(filename)
 
         # Check if camera opened successfully
         if cap.isOpened() is False:
@@ -79,7 +76,7 @@ class VidCompile:
 
         cap.release()
 
-    def choose_thresh(self, img) -> None:
+    def choose_thresh(self) -> None:
         """ Decide on what threshold to apply on the image
             Anything above the threshold will be considered background and ignored
 
@@ -88,12 +85,15 @@ class VidCompile:
             Outputs:
             - None
         """
-        # Is the input image grayscale already? If not, convert it
-        # gry = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gry = img
+        index = 0
+        logging.info("Current index = %d\t|\tCurrent Threshold = %d", index, self.thresh)
 
         # Loop until the user confirms the threshold value from the previews
         while True:
+            # Is the input image grayscale already? If not, convert it
+            # gry = cv2.cvtColor(self.frame_arr[index], cv2.COLOR_BGR2GRAY)
+            gry = self.frame_arr[index]
+            
             # Generate thresholds
             ret, edit = cv2.threshold(gry,self.thresh,255,cv2.THRESH_TOZERO_INV)
             ret, binary = cv2.threshold(gry,self.thresh,255,cv2.THRESH_BINARY)
@@ -106,36 +106,36 @@ class VidCompile:
             Key = cv2.waitKeyEx()
             if Key == 113:
                 break
-            if Key == 2424832:          # Left arrow, jump down
-                self.thresh -= 5
-            elif Key == 2621440:        # Down arrow, step down
+            if Key == 2424832:          # Left arrow, previous frame
+                index -= 1
+            elif Key == 2621440:        # Down arrow, step down brightness
                 self.thresh -= 1
-            elif Key == 2490368:        # Up arrow, step up
+            elif Key == 2490368:        # Up arrow, step up brightness
                 self.thresh += 1
-            elif Key == 2555904:        # Right arrow, jump up
-                self.thresh += 5
+            elif Key == 2555904:        # Right arrow, next frame
+                index += 1
 
             # Enforce bounds and debug
+            if index > len(self.frame_arr)-1:
+                index = len(self.frame_arr)-1
+            elif index < 0:
+                index = 0
             if self.thresh > 255:
                 self.thresh = 255
             elif self.thresh < 0:
                 self.thresh = 0
-            logging.info("Current Threshold = %d", self.thresh)
+            logging.info("New index = %d\t|\tNew Threshold = %d", index, self.thresh)
 
     def overlay(self, img):
         """ Overlay an image onto the background
             This chooses the darker pixel for each spot of the two images
-            Right now it is for grayscale images, but the commented out code can be used for color
+            Right now it is for grayscale images, but the can be modified for color
         """
         r,c = self.output.shape
         for y in range(r):
             for x in range(c):
                 if img[y,x] <= self.thresh and img[y,x] < self.output[y,x]:
                     self.output[y,x] = img[y,x]
-                # if img[y,x,1] <= self.thresh and img[y,x,1] < self.output[y,x,1]:
-                #     self.output[y,x,1] = img[y,x,1]
-                # if img[y,x,2] <= self.thresh and img[y,x,2] < self.output[y,x,2]:
-                #     self.output[y,x,2] = img[y,x,2]
 
 
 if __name__ == "__main__":
