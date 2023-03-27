@@ -7,7 +7,7 @@ from tkinter import filedialog
 import cv2
 import numpy as np
 
-BATCH = True
+BATCH = False
 INIT_THRESH = 127
 START = 0
 STOP = -1
@@ -151,8 +151,6 @@ class VidCompile:
             # Use arrow keys to adjust threshold, up/down are fine tuning, left/right are bigger
             # TODO: use the current frame when q is pressed to start the clip
             Key = cv2.waitKeyEx()
-            if Key == 113:
-                break
             if Key == 2424832:          # Left arrow, previous frame
                 index -= 1
             elif Key == 2621440:        # Down arrow, step down brightness
@@ -161,8 +159,14 @@ class VidCompile:
                 self.thresh += 1
             elif Key == 2555904:        # Right arrow, next frame
                 index += 1
+            elif Key == 13:
+                break
+            elif Key == 32:
+                self.start = index
+            elif Key == 8:
+                self.stop = index
             else:
-                logging.debug("Invalid Key: %d", Key)
+                logging.warning("Invalid Key: %d", Key)
 
             # Enforce bounds and debug
             if index > len(self.frame_arr)-1:
