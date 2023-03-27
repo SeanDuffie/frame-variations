@@ -1,10 +1,16 @@
 """ overlay.py
 """
 import logging
+import os
 from tkinter import filedialog
-import numpy as np
-import cv2
 
+import cv2
+import numpy as np
+
+BATCH = True
+INIT_THRESH = 127
+START = 0
+STOP = -1
 
 class VidCompile:
     """ Compiles an input video into one overlayed image """
@@ -13,33 +19,67 @@ class VidCompile:
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%d %H:%M:%S")
 
+        # Set path
+        self.filepath = path
+
+        logging.debug("Reading video...")
+        if BATCH:
+            if self.filepath == "":
+                self.filepath = filedialog.askdirectory()
+            logging.info("Parsing directory: %s", self.filepath)
+            for file_name in os.listdir(self.filepath):
+                self.filename = os.path.basename(file_name)
+                logging.info("Current Video: %s", self.filename)
+                self.run()
+
+        else:
+            if self.filepath == "":
+                self.filepath = filedialog.askopenfilename()
+            self.filename = os.path.basename(self.filepath)
+            self.run()
+
+    def run(self):
+        """ Main runner per video """
         # Obtain frames to go into the overlayed image
         self.frame_arr = []
-        self.read_video()
+        self.alpha_arr = []
+        # self.read_video()
+        self.read_video(start=START, stop=STOP)
 
         # Determine Maximum Brightness Threshold
-        self.thresh = 127
-        self.choose_thresh()
+        self.thresh = INIT_THRESH
+        if not BATCH:
+            self.choose_thresh()
         cv2.destroyAllWindows()
 
         # Generate initial background image
-        self.output = np.zeros(self.frame_arr[0].shape, dtype=np.uint8)
-        self.output.fill(self.thresh+75)
+        self.thresh_output = np.zeros(self.frame_arr[0].shape, dtype=np.uint8)
+        self.alpha_output = np.zeros(self.frame_arr[0].shape, dtype=np.float64)
+        self.thresh_output.fill(self.thresh+75)
+        self.alpha_output.fill(0)
+
+        alpha = 1/len(self.frame_arr)
 
         # Overlay each of the selected frames onto the output image
         for i, im in enumerate(self.frame_arr):
-            self.overlay(im)
+            self.alpha_overlay(im, alpha)
+            self.thresh_overlay(im)
+            
             logging.info("Frame %d/%d overlayed...", i+1, len(self.frame_arr))
-            cv2.imshow("output", self.output)
+            cv2.imshow("alpha_output", (np.rint(self.alpha_output)).astype(np.uint8))
+            cv2.imshow("thresh_output", self.thresh_output)
+
             cv2.waitKey(1)
 
         # Display the final results and output to file
-        # TODO: Adjust directory naming convention
-        cv2.imwrite("overlay.png", self.output)
         logging.info("Finished! Press any key to end and write to file")
-        cv2.waitKey()
+        if not BATCH:
+            cv2.waitKey()
+        cv2.imwrite(f"{self.filename}-alpha.png", (np.rint(self.alpha_output)).astype(np.uint8))
+        cv2.imwrite(f"{self.filename}-thresh.png", self.thresh_output)
+        cv2.destroyAllWindows()
 
-    def read_video(self, start=0, stop=-1, step=1):
+    def read_video(self, start=0, stop=-1):
         """ Read in individual frames from the video
 
             Inputs:
@@ -49,9 +89,10 @@ class VidCompile:
             Outputs:
             - None
         """
-        logging.debug("Reading video...")
-        filename = filedialog.askopenfilename()
-        cap = cv2.VideoCapture(filename)
+        if BATCH:
+            cap = cv2.VideoCapture(self.filepath + "/" + self.filename)
+        else:
+            cap = cv2.VideoCapture(self.filepath)
 
         # Check if camera opened successfully
         if cap.isOpened() is False:
@@ -61,12 +102,17 @@ class VidCompile:
         c = 0
         while cap.isOpened():
             ret, frame = cap.read()     # Capture frame-by-frame
-            if ret is True and c >= start and (c <= stop or stop == -1):
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                self.frame_arr.append(frame)
-            else:
+
+            if ret is True and (c <= stop or stop == -1):
+
+                if c >= start:       # Skip frames that are less than start
+                    frame    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    self.frame_arr.append(frame)
+
+            else:                   # Close the video after all frames have been read
                 break
-            c+=step
+
+            c+=1
 
         # Debug for image errors
         if len(self.frame_arr) == 0:
@@ -86,7 +132,7 @@ class VidCompile:
             - None
         """
         index = 0
-        logging.info("Current index = %d\t|\tCurrent Threshold = %d", index, self.thresh)
+        logging.info("Current index = %d/%d\t|\tCurrent Threshold = %d", index, len(self.frame_arr), self.thresh)
 
         # Loop until the user confirms the threshold value from the previews
         while True:
@@ -103,6 +149,7 @@ class VidCompile:
             cv2.imshow("binary", binary)
 
             # Use arrow keys to adjust threshold, up/down are fine tuning, left/right are bigger
+            # TODO: use the current frame when q is pressed to start the clip
             Key = cv2.waitKeyEx()
             if Key == 113:
                 break
@@ -114,6 +161,8 @@ class VidCompile:
                 self.thresh += 1
             elif Key == 2555904:        # Right arrow, next frame
                 index += 1
+            else:
+                logging.debug("Invalid Key: %d", Key)
 
             # Enforce bounds and debug
             if index > len(self.frame_arr)-1:
@@ -124,19 +173,28 @@ class VidCompile:
                 self.thresh = 255
             elif self.thresh < 0:
                 self.thresh = 0
-            logging.info("New index = %d\t|\tNew Threshold = %d", index, self.thresh)
+            logging.info("New index = %d/%d\t|\tNew Threshold = %d", index, len(self.frame_arr), self.thresh)
 
-    def overlay(self, img):
+    def alpha_overlay(self, im, alpha):
         """ Overlay an image onto the background
             This chooses the darker pixel for each spot of the two images
             Right now it is for grayscale images, but the can be modified for color
         """
-        r,c = self.output.shape
+        r,c = self.alpha_output.shape
         for y in range(r):
             for x in range(c):
-                if img[y,x] <= self.thresh and img[y,x] < self.output[y,x]:
-                    self.output[y,x] = img[y,x]
+                self.alpha_output[y,x] += im[y,x] * alpha
 
+    def thresh_overlay(self, im):
+        """ Overlay an image onto the background
+            This chooses the darker pixel for each spot of the two images
+            Right now it is for grayscale images, but the can be modified for color
+        """
+        r,c = self.thresh_output.shape
+        for y in range(r):
+            for x in range(c):
+                if im[y,x] <= self.thresh and im[y,x] < self.thresh_output[y,x]:
+                    self.thresh_output[y,x] = im[y,x]
 
 if __name__ == "__main__":
     ov = VidCompile()
