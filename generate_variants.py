@@ -40,7 +40,7 @@ class ImgMod:
         self.path = path
         if self.path == "":
             self.path = filedialog.askdirectory()
-        if self.path == "":          # FIXME: How do we want to do this? Loop or exit?
+        if self.path == "":
             logging.error("Error: No path specified! Exiting...")
             sys.exit(1)
         self.clean_setup()
