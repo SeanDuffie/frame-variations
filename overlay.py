@@ -2,8 +2,8 @@
 """
 import logging
 import os
-from tkinter import filedialog
 import sys
+from tkinter import filedialog
 
 import cv2
 import numpy as np
@@ -25,6 +25,7 @@ class VidCompile:
         self.filepath = path
         self.start = START
         self.stop = STOP
+        self.thresh = INIT_THRESH
 
         logging.debug("Reading video...")
         if BATCH:
@@ -60,7 +61,6 @@ class VidCompile:
         self.read_video()
 
         # Determine Maximum Brightness Threshold
-        self.thresh = INIT_THRESH
         self.choose_thresh()
         cv2.destroyAllWindows()
 
@@ -94,7 +94,7 @@ class VidCompile:
 
         # Display the final results and output to file
         logging.info("Finished! Press any key to end and write to file")
-        pth = "outputs/"
+        pth = "./outputs/"
         if not BATCH:
             cv2.waitKey()
         else:
@@ -103,8 +103,9 @@ class VidCompile:
                 os.mkdir(pth)
 
         if ALPHA:
-            cv2.imwrite(f"./{pth}{self.filename[0:len(self.filename)-4]}-alpha.png", (np.rint(self.alpha_output)).astype(np.uint8))
-        cv2.imwrite(f"./{pth}{self.filename[0:len(self.filename)-4]}-thresh.png", self.thresh_output)
+            cv2.imwrite(f"{pth}{self.filename[0:len(self.filename)-4]}-alpha.png",
+                                            (np.rint(self.alpha_output)).astype(np.uint8))
+        cv2.imwrite(f"{pth}{self.filename[0:len(self.filename)-4]}-thresh.png", self.thresh_output)
 
         cv2.destroyAllWindows()
 
@@ -163,14 +164,13 @@ class VidCompile:
             - None
         """
         index = 0
-        logging.info("Current index = %d/%d\t|\tCurrent Threshold = %d", index, len(self.frame_arr)-1, self.thresh)
+        logging.info("Index = %d/%d\t|\tThreshold = %d", index, len(self.frame_arr)-1, self.thresh)
 
         # Loop until the user confirms the threshold value from the previews
         while True:
             # Is the input image grayscale already? If not, convert it
-            # gry = cv2.cvtColor(self.frame_arr[index], cv2.COLOR_BGR2GRAY)
             gry = self.frame_arr[index]
-            
+
             # Generate thresholds
             ret, edit = cv2.threshold(gry,self.thresh,255,cv2.THRESH_TOZERO_INV)
             ret, binary = cv2.threshold(gry,self.thresh,255,cv2.THRESH_BINARY)
@@ -209,7 +209,8 @@ class VidCompile:
                 self.thresh = 255
             elif self.thresh < 0:
                 self.thresh = 0
-            logging.info("New index = %d/%d\t|\tNew Threshold = %d", index, len(self.frame_arr)-1, self.thresh)
+            logging.info("Index = %d/%d\t|\tThreshold = %d", index,
+                                                len(self.frame_arr)-1, self.thresh)
 
     def alpha_overlay(self, im, alpha):
         """ Overlay an image onto the background

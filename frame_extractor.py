@@ -76,8 +76,9 @@ class VidClass:
                     break
 
         cv2.destroyAllWindows()
-    
+
     def get_frames(self):
+        """ Returns the currently loaded set of frames """
         return self.frame_arr
 
     def select_frames(self, start=0, end=1, interval=1) -> None:

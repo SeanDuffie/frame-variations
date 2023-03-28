@@ -4,11 +4,12 @@ main file
 import logging
 import os
 import sys
-from tkinter import filedialog
 
 from generate_variants import ImgMod
 
+
 def main():
+    """ main function for generating variants """
     # Initial Logger Settings
     fmt_main = "%(asctime)s | main\t\t: %(message)s"
     logging.basicConfig(format=fmt_main, level=logging.INFO,
@@ -41,7 +42,7 @@ def main():
             os.replace(rel_path, "./variants/" + new_dir + "/" + file_name)
         else:
             logging.warning("Warning: Extra file in variants directory")
-    
+
     # Run modifications on each folder
     for file_name in os.listdir("./variants"):
         rel_path = "./variants/" + file_name

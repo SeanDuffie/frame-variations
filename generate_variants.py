@@ -61,7 +61,7 @@ class ImgMod:
         """
         vid_found = 0
         if not VIDEO:
-            logging.info("Using old frames! If this is a new directory then please set global 'VIDEO' to true")
+            logging.info("Using old frames! If directory is new then set global 'VIDEO' to true")
 
         for file_name in os.listdir(self.path):
             f = os.path.join(self.path, file_name)
@@ -299,7 +299,7 @@ class ImgMod:
                     logging.info("Press 'c' to confirm. Any other button skips.")
                     if cv2.waitKey(0) & 0xFF == ord('c'):
                         a_bp, a_wp = self.auto_balance(cropped)         # Auto
-                        self.adjust(cur_img=cur_img, fname=file_name, mod_name="/3_auto/", balance=(a_bp, a_wp))
+                        self.adjust(cur_img, file_name, mod_name="/3_auto/", balance=(a_bp, a_wp))
             ########   END FACES   ########
 
             ########## ADJUSTMENTS ##########
