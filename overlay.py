@@ -3,12 +3,14 @@
 import logging
 import os
 from tkinter import filedialog
+import sys
 
 import cv2
 import numpy as np
 
-BATCH = False
-INIT_THRESH = 127
+BATCH = True
+ALPHA = False
+INIT_THRESH = 255
 START = 0
 STOP = -1
 
@@ -21,20 +23,32 @@ class VidCompile:
 
         # Set path
         self.filepath = path
+        self.start = START
+        self.stop = STOP
 
         logging.debug("Reading video...")
         if BATCH:
             if self.filepath == "":
                 self.filepath = filedialog.askdirectory()
+            if self.filepath == "":
+                logging.error("No directory specified! Exiting...")
+                sys.exit(1)
             logging.info("Parsing directory: %s", self.filepath)
             for file_name in os.listdir(self.filepath):
-                self.filename = os.path.basename(file_name)
-                logging.info("Current Video: %s", self.filename)
-                self.run()
+                if file_name.endswith(".avi") or file_name.endswith(".mp4"):
+                    self.filename = os.path.basename(file_name)
+                    logging.info("Current Video: %s", self.filename)
+                    self.run()
 
         else:
             if self.filepath == "":
                 self.filepath = filedialog.askopenfilename()
+            if self.filepath == "":
+                logging.error("No file specified! Exiting...")
+                sys.exit(1)
+            if (not self.filepath.endswith(".avi") and not self.filepath.endswith(".mp4")):
+                logging.error("File must be a video! Exiting...")
+                sys.exit(1)
             self.filename = os.path.basename(self.filepath)
             self.run()
 
@@ -43,40 +57,55 @@ class VidCompile:
         # Obtain frames to go into the overlayed image
         self.frame_arr = []
         self.alpha_arr = []
-        # self.read_video()
-        self.read_video(start=START, stop=STOP)
+        self.read_video()
 
         # Determine Maximum Brightness Threshold
         self.thresh = INIT_THRESH
-        if not BATCH:
-            self.choose_thresh()
+        self.choose_thresh()
         cv2.destroyAllWindows()
 
-        # Generate initial background image
-        self.thresh_output = np.zeros(self.frame_arr[0].shape, dtype=np.uint8)
-        self.alpha_output = np.zeros(self.frame_arr[0].shape, dtype=np.float64)
-        self.thresh_output.fill(self.thresh+75)
-        self.alpha_output.fill(0)
+        # Generate initial background images
+        if ALPHA:
+            self.alpha_output = np.zeros(self.frame_arr[0].shape, dtype=np.float64)
+            self.alpha_output.fill(0)
 
-        alpha = 1/len(self.frame_arr)
+        self.thresh_output = np.zeros(self.frame_arr[0].shape, dtype=np.uint8)
+        self.thresh_output.fill(255)
+
+        alpha = 1/self.stop
 
         # Overlay each of the selected frames onto the output image
         for i, im in enumerate(self.frame_arr):
-            self.alpha_overlay(im, alpha)
+            if i < self.start:
+                continue
+            if i > self.stop:
+                break
+
+            if ALPHA:
+                self.alpha_overlay(im, alpha)
             self.thresh_overlay(im)
-            
-            logging.info("Frame %d/%d overlayed...", i+1, len(self.frame_arr))
-            cv2.imshow("alpha_output", (np.rint(self.alpha_output)).astype(np.uint8))
+
+            logging.info("Frame %d/%d overlayed...", i-self.start, self.stop-self.start)
+            if ALPHA:
+                cv2.imshow("alpha_output", (np.rint(self.alpha_output)).astype(np.uint8))
             cv2.imshow("thresh_output", self.thresh_output)
 
             cv2.waitKey(1)
 
         # Display the final results and output to file
         logging.info("Finished! Press any key to end and write to file")
+        pth = "outputs/"
         if not BATCH:
             cv2.waitKey()
-        cv2.imwrite(f"{self.filename}-alpha.png", (np.rint(self.alpha_output)).astype(np.uint8))
-        cv2.imwrite(f"{self.filename}-thresh.png", self.thresh_output)
+        else:
+            pth += os.path.basename(self.filepath) + "/"
+            if not os.path.exists(pth):
+                os.mkdir(pth)
+
+        if ALPHA:
+            cv2.imwrite(f"./{pth}{self.filename[0:len(self.filename)-4]}-alpha.png", (np.rint(self.alpha_output)).astype(np.uint8))
+        cv2.imwrite(f"./{pth}{self.filename[0:len(self.filename)-4]}-thresh.png", self.thresh_output)
+
         cv2.destroyAllWindows()
 
     def read_video(self, start=0, stop=-1):
@@ -118,6 +147,8 @@ class VidCompile:
         if len(self.frame_arr) == 0:
             logging.warning("Issue Reading Video...")
         else:
+            self.start = 0
+            self.stop = len(self.frame_arr) - 1
             logging.debug("Video length = %d frames", len(self.frame_arr))
 
         cap.release()
@@ -132,7 +163,7 @@ class VidCompile:
             - None
         """
         index = 0
-        logging.info("Current index = %d/%d\t|\tCurrent Threshold = %d", index, len(self.frame_arr), self.thresh)
+        logging.info("Current index = %d/%d\t|\tCurrent Threshold = %d", index, len(self.frame_arr)-1, self.thresh)
 
         # Loop until the user confirms the threshold value from the previews
         while True:
@@ -149,7 +180,6 @@ class VidCompile:
             cv2.imshow("binary", binary)
 
             # Use arrow keys to adjust threshold, up/down are fine tuning, left/right are bigger
-            # TODO: use the current frame when q is pressed to start the clip
             Key = cv2.waitKeyEx()
             if Key == 2424832:          # Left arrow, previous frame
                 index -= 1
@@ -163,8 +193,10 @@ class VidCompile:
                 break
             elif Key == 32:
                 self.start = index
+                logging.info("New range: (%d-%d)", self.start, self.stop)
             elif Key == 8:
                 self.stop = index
+                logging.info("New range: (%d-%d)", self.start, self.stop)
             else:
                 logging.warning("Invalid Key: %d", Key)
 
@@ -177,7 +209,7 @@ class VidCompile:
                 self.thresh = 255
             elif self.thresh < 0:
                 self.thresh = 0
-            logging.info("New index = %d/%d\t|\tNew Threshold = %d", index, len(self.frame_arr), self.thresh)
+            logging.info("New index = %d/%d\t|\tNew Threshold = %d", index, len(self.frame_arr)-1, self.thresh)
 
     def alpha_overlay(self, im, alpha):
         """ Overlay an image onto the background
