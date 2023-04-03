@@ -26,6 +26,7 @@ class VidCompile:
         self.start = START
         self.stop = STOP
         self.thresh = INIT_THRESH
+        self.skip_clip = False
 
         logging.debug("Reading video...")
         if BATCH:
@@ -40,6 +41,7 @@ class VidCompile:
                     self.filename = os.path.basename(file_name)
                     logging.info("Current Video: %s", self.filename)
                     self.run()
+                    self.skip_clip = False
 
         else:
             if self.filepath == "":
@@ -63,6 +65,10 @@ class VidCompile:
         # Determine Maximum Brightness Threshold
         self.choose_thresh()
         cv2.destroyAllWindows()
+
+        # Cancel video processing
+        if self.skip_clip:
+            return
 
         # Generate initial background images
         if ALPHA:
@@ -105,7 +111,7 @@ class VidCompile:
         if ALPHA:
             cv2.imwrite(f"{pth}{self.filename[0:len(self.filename)-4]}-alpha.png",
                                             (np.rint(self.alpha_output)).astype(np.uint8))
-        cv2.imwrite(f"{pth}{self.filename[0:len(self.filename)-4]}-thresh.png", self.thresh_output)
+        cv2.imwrite(f"{pth}{self.filename[0:len(self.filename)-4]}.png", self.thresh_output)
 
         cv2.destroyAllWindows()
 
@@ -190,6 +196,10 @@ class VidCompile:
             elif Key == 2555904:        # Right arrow, next frame
                 index += 1
             elif Key == 13:
+                break
+            elif Key == 27:
+                self.skip_clip = True
+                logging.info("Skipping video...")
                 break
             elif Key == 32:
                 self.start = index
