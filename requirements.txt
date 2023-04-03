@@ -1,0 +1,4 @@
+logging
+tkinter
+opencv-python
+numpy

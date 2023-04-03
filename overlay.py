@@ -8,7 +8,7 @@ from tkinter import filedialog
 import cv2
 import numpy as np
 
-BATCH = True
+BATCH = False
 ALPHA = False
 INIT_THRESH = 255
 START = 0
@@ -63,7 +63,8 @@ class VidCompile:
         self.read_video()
 
         # Determine Maximum Brightness Threshold
-        self.choose_thresh()
+        if "bubbl" in self.filename or not BATCH:   # If video has a bubble, prompt user to trim
+            self.choose_thresh()
         cv2.destroyAllWindows()
 
         # Cancel video processing
@@ -171,6 +172,14 @@ class VidCompile:
         """
         index = 0
         logging.info("Index = %d/%d\t|\tThreshold = %d", index, len(self.frame_arr)-1, self.thresh)
+        logging.info("How to use:")
+        logging.info("\t- 'esc' - skips the current video")
+        logging.info("\t- 'space' - sets the current frame as the starting point")
+        logging.info("\t- 'backspace' - sets the current frame as the ending point")
+        logging.info("\t- 'left' - moves back one frame")
+        logging.info("\t- 'right' - moves forward one frame")
+        logging.info("\t- 'up' - increases the threshold")
+        logging.info("\t- 'down' - decreases the threshold")
 
         # Loop until the user confirms the threshold value from the previews
         while True:
