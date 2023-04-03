@@ -10,6 +10,7 @@ else you will have to select an individual video
 7. Depending on other settings, you may be prompted to adjust the brightness threshold
 and the start/stop frames. Keybinds are listed below (must be pressed with image window in focus)
     - 'esc' - Skips the current video
+    - 'enter' - accepts the current settings
     - 'space' - sets the current frame as the starting point
     - 'backspace' - sets the current frame as the ending point
     - 'left' - moves back one frame

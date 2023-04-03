@@ -174,6 +174,7 @@ class VidCompile:
         logging.info("Index = %d/%d\t|\tThreshold = %d", index, len(self.frame_arr)-1, self.thresh)
         logging.info("How to use:")
         logging.info("\t- 'esc' - skips the current video")
+        logging.info("\t- 'enter' - accepts the current settings")
         logging.info("\t- 'space' - sets the current frame as the starting point")
         logging.info("\t- 'backspace' - sets the current frame as the ending point")
         logging.info("\t- 'left' - moves back one frame")
