@@ -8,7 +8,7 @@ from tkinter import filedialog
 import cv2
 import numpy as np
 
-BATCH = False
+BATCH = True 
 ALPHA = False
 INIT_THRESH = 255
 START = 0
@@ -95,7 +95,7 @@ class VidCompile:
             logging.info("Frame %d/%d overlayed...", i-self.start, self.stop-self.start)
             if ALPHA:
                 cv2.imshow("alpha_output", (np.rint(self.alpha_output)).astype(np.uint8))
-            cv2.imshow("thresh_output", self.thresh_output)
+            cv2.imshow("output", self.thresh_output)
 
             cv2.waitKey(1)
 
