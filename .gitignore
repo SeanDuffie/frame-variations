@@ -1,7 +1,4 @@
 # Directories
-variants/*
-overlay/*
-Basler/*
 outputs/*
 
 # Byte-compiled / optimized / DLL files
