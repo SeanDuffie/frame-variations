@@ -18,15 +18,15 @@ import numpy as np
 from frame_extractor import VidClass
 
 ### FLAGS ###
-FACE = False            # Should it search for faces?
-PREV = True            # Display output to screen
-OUT = True             # Write output to a jpg file
-FRESH = True           # Removes all existing generated frames
-VIDEO = True           # Set false to skip reading in the video, runtime is much faster without
-MANUAL_FRAMES = False   # Set true if you want to manually pick the start, end, and interval
+FACE: bool = False          # Should it search for faces?
+PREV: bool = True           # Display output to screen
+OUT: bool = True            # Write output to a jpg file
+FRESH: bool = True          # Removes all existing generated frames
+VIDEO: bool = True          # Set false to skip reading in the video, runtime is much faster without
+MANUAL_FRAMES: bool = False # Set true if you want to manually pick the start, end, and interval
 
 # NOTE: If the resolution is too high and not downscaled, the program will run slowly
-RESIZE = .25      # Factor to resize frames by? (1 skips calculation, must be greater than 0)
+RESIZE = .25        # Factor to resize frames by? (1 skips calculation, must be greater than 0)
 
 
 class ImgMod:
