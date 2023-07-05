@@ -28,7 +28,7 @@ VIDEO: bool = True          # Set false to skip reading in the video, runtime is
 MANUAL_FRAMES: bool = False # Set true if you want to manually pick the start, end, and interval
 
 # NOTE: If the resolution is too high and not downscaled, the program will run slowly
-RESIZE: float = .25        # Factor to resize frames by? (1 skips calculation, must be greater than 0)
+RESIZE: float = 1        # Factor to resize frames by? (1 skips calculation, must be greater than 0)
 
 
 class ImgMod:
@@ -253,7 +253,6 @@ class ImgMod:
         self.clean_setup()
         video = FrameExt(path=self.path, scale=RESIZE)
         start, stop, interval = self.acquire_frames(video)           # Grabs the frames from the video, if enabled
-        # self.parse_dir()                    # Grabs the generated frames from "./1_orig_frames"
         ##########    END LOAD IMAGES    ##########
 
         ##########   START IMAGE MODS   ##########
@@ -264,7 +263,6 @@ class ImgMod:
 
             # Original Image
             img = video.get_frame(i)
-            # logging.info("\tImage Read")
             if img is None:
                 continue
 
@@ -274,7 +272,6 @@ class ImgMod:
             # Initial Grayscale
             gry_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             cv2.imwrite(f"{self.path}/2_grayscale/{fname}", gry_img)
-            # logging.info("\tDefault Outs")
 
             ##########   START FACES   ##########
             if FACE:
@@ -300,33 +297,33 @@ class ImgMod:
             ########## ADJUSTMENTS ##########
             # NOTE: IF ANY ADJUSTMENTS ARE NEEDED, THEY WILL BE MADE HERE
             # Brightness/Contrast using Black and White points
-            logging.info("Adjust 1...")
+            # logging.info("Adjust 1...")
             fc_1: npt.NDArray[Any] = self.adjust(img=img, fname=fname, balance=(0, 190))
-            logging.info("Adjust 2...")
+            # logging.info("Adjust 2...")
             fc_2: npt.NDArray[Any] = self.adjust(img=fc_1, fname=fname, balance=(0, 200))
-            logging.info("Adjust 3...")
+            # logging.info("Adjust 3...")
             self.adjust(img=fc_2, fname=fname, balance=(50, 200))
-            logging.info("Adjust 4...")
+            # logging.info("Adjust 4...")
             self.adjust(img=img, fname=fname, balance=(12, 220))
-            logging.info("Adjust 5...")
+            # logging.info("Adjust 5...")
             self.adjust(img=img, fname=fname, balance=(24, 185))
 
             # Hue/Saturation
-            logging.info("Adjust 6...")
+            # logging.info("Adjust 6...")
             self.adjust(img=img, fname=fname, color=(45,1), balance=(24, 185))
-            logging.info("Adjust 7...")
+            # logging.info("Adjust 7...")
             self.adjust(img=img, fname=fname, color=(45,100), balance=(24, 185))
-            logging.info("Adjust 8...")
+            # logging.info("Adjust 8...")
             self.adjust(img=img, fname=fname, color=(90,1), balance=(24, 185))
-            logging.info("Adjust 9...")
+            # logging.info("Adjust 9...")
             self.adjust(img=img, fname=fname, color=(90,100), balance=(24, 185))
-            logging.info("Adjust 10...")
+            # logging.info("Adjust 10...")
             self.adjust(img=img, fname=fname, color=(135,1), balance=(24, 185))
-            logging.info("Adjust 11...")
+            # logging.info("Adjust 11...")
             self.adjust(img=img, fname=fname, color=(135,100), balance=(24, 185))
-            logging.info("Adjust 12...")
+            # logging.info("Adjust 12...")
             self.adjust(img=img, fname=fname, color=(180,1), balance=(24, 185))
-            logging.info("Adjust 13...")
+            # logging.info("Adjust 13...")
             self.adjust(img=img, fname=fname, color=(180,100), balance=(24, 185))
             cv2.destroyAllWindows()
 
