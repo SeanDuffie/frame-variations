@@ -11,7 +11,7 @@ from generate_variants import ImgMod
 def main():
     """ main function for generating variants """
     # Initial Logger Settings
-    fmt_main = "%(asctime)s | main\t\t: %(message)s"
+    fmt_main: str = "%(asctime)s | %(levelname)s |\tmain:\t%(message)s"
     logging.basicConfig(format=fmt_main, level=logging.INFO,
                     datefmt="%Y-%m-%D %H:%M:%S")
 
@@ -24,7 +24,6 @@ def main():
 
     # Make sure the user added elements to the variants directory
     if len(os.listdir("./variants")) < 2:
-        logging.error("Error: the './variants' dir did not exist, it has now been created.")
         logging.error("Error: Add your videos there and run again")
         sys.exit(1)
 

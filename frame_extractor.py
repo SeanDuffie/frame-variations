@@ -2,59 +2,64 @@
 """
 import logging
 import os
+import sys
+import time
+from typing import Any
 
 import cv2
+import keyboard
+import numpy.typing as npt
 
 
-class VidClass:
+class FrameExt:
     """Handles video processing"""
-    def __init__(self, path: str, scale: float) -> None:
-        """ Initializes the VidClass
+    def __init__(self, path: str, scale: float = .25) -> None:
+        """ Initializes the FrameExt
 
         :param path: directory that the program will be operating in
             this should be a directory with a single video in it, which both have the same name
         """
         # Initial Logger Settings
-        fmt_main = "%(asctime)s | VidClass:\t%(message)s"
+        fmt_main: str = "%(asctime)s | %(levelname)s |\tFrameExt:\t%(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
-        self.path = path
-        self.scale = scale
-        self.name = os.path.basename(self.path)
-        self.frame_arr = self.get_vid()
+        self.path: str = path
+        self.scale: float = scale
+        self.name: str = os.path.basename(self.path)
+        self.cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")
+        self.width, self.height, self.fcnt, self.fps = {
+            self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
+            self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT),
+            self.cap.get(cv2.CAP_PROP_FRAME_COUNT),
+            self.cap.get(cv2.CAP_PROP_FPS),
+        }
+        self.index: int = 0
 
-    def get_vid(self) -> list:
-        """Puts all frames into an array
+    def get_frame(self, index: int = -1) -> npt.NDArray[Any]:
+        # Check for video bounds
+        if index >= self.fcnt:
+            logging.error("Index out of bounds")
+            sys.exit(1)
+        if index == -1:
+            index = self.index
 
-        :returns: frames - list containing each frame from the '.mp4' file
-        """
-        logging.info("Reading video...")
-        logging.info("This takes a minute or two...")
-        frames = []
-        cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")
-
-        # Check if camera opened successfully
-        if cap.isOpened() is False:
-            logging.info("Error opening video stream or file")
-
-        # Read until video is completed
-        while cap.isOpened():
-            ret, frame = cap.read()     # Capture frame-by-frame
-            if ret is True:
-                if self.scale != 1:
-                    frame = self.resize_img(frame, self.scale)
-
-                frames.append(frame)
-            else:
-                break
-
-        if len(frames) == 0:
-            logging.warning("Issue Reading Video...")
+        # Set the index and read next value
+        if self.index == index:
+            ret, image = self.cap.read()
+            self.index += 1
         else:
-            logging.info("Video length = %d frames", len(frames))
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+            ret, image = self.cap.read()
+            self.index = index + 1
 
-        cap.release()
-        return frames
+        # Check if the frame was acquired successfully
+        if ret:
+            if self.scale != 1:
+                frame = self.resize_img(image, self.scale)
+            return image
+        else:
+            logging.error("ret failed")
+            sys.exit(1)
 
     def play_vid(self) -> None:
         """Plays the frames on loop in order
@@ -63,35 +68,22 @@ class VidClass:
         Press 'q' to exit
         """
         logging.info("Playing video...")
-        loop = True
+        temp_cap = cv2.VideoCapture(self.path + "/" + self.name + ".mp4")
 
-        while loop:
-            for mrk, frame in enumerate(self.frame_arr):
-                # logging.info("Frame %d, %d.%d seconds", mrk, int(mrk/30), mrk%30)
+        while temp_cap.isOpen():
+            ret, frame = temp_cap.read()
+
+            if ret:
                 cv2.imshow('Frame',frame)
+                time.sleep(1/self.fps)
+            else:
+                break
 
-                # Press Q on keyboard to  exit
-                if cv2.waitKey(3) & 0xFF == ord('q'):
-                    loop = False
-                    break
+            # Press Q on keyboard to  exit
+            if keyboard.is_pressed("q"):
+                break
 
         cv2.destroyAllWindows()
-
-    def get_frames(self):
-        """ Returns the currently loaded set of frames """
-        return self.frame_arr
-
-    def select_frames(self, start=0, end=1, interval=1) -> None:
-        """Outputs a selection of frames to a subdirectory './1_orig_frames'
-
-        :param start: initial frame for selection
-        :param end: final frame in selection
-        :param interval: amount of frames to increment per output image
-        """
-        mrk = start
-        while mrk <= end:
-            cv2.imwrite(f"{self.path}/1_orig_frames/frame{mrk}.jpg", self.frame_arr[mrk])
-            mrk += interval
 
     def resize_img(self, img, scale: float):
         """Scales the image by a given ratio

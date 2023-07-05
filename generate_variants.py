@@ -4,36 +4,38 @@ generating many variations of the same image to see what effect is had on facial
 
 This will be done in batch on a large selection of files
 TODO: Graypoint calculation
-TODO: Adjust the auto balance by Stoian's suggestion (max of min/max of max)
-FIXME: Naming convention for frames cause 90 to be seen as higher than 100, do 90 -> 090 instead
 """
+import datetime
 import logging
 import os
 import sys
+import time
 from tkinter import filedialog
+from typing import Any
 
 import cv2
 import numpy as np
+import numpy.typing as npt
 
-from frame_extractor import VidClass
+from frame_extractor import FrameExt
 
 ### FLAGS ###
 FACE: bool = False          # Should it search for faces?
-PREV: bool = True           # Display output to screen
+PREV: bool = False           # Display output to screen
 OUT: bool = True            # Write output to a jpg file
 FRESH: bool = True          # Removes all existing generated frames
 VIDEO: bool = True          # Set false to skip reading in the video, runtime is much faster without
 MANUAL_FRAMES: bool = False # Set true if you want to manually pick the start, end, and interval
 
 # NOTE: If the resolution is too high and not downscaled, the program will run slowly
-RESIZE = .25        # Factor to resize frames by? (1 skips calculation, must be greater than 0)
+RESIZE: float = .25        # Factor to resize frames by? (1 skips calculation, must be greater than 0)
 
 
 class ImgMod:
     """Applies image modifications automatically in bulk"""
     def __init__(self, path="") -> None:
         # Initial Logger Settings
-        fmt_main = "%(asctime)s | ImgMod:\t%(message)s"
+        fmt_main: str = "%(asctime)s | %(levelname)s\t| ImgMod:\t%(message)s"
         logging.basicConfig(format=fmt_main, level=logging.INFO,
                         datefmt="%Y-%m-%D %H:%M:%S")
 
@@ -43,10 +45,8 @@ class ImgMod:
         if self.path == "":
             logging.error("Error: No path specified! Exiting...")
             sys.exit(1)
-        self.clean_setup()
 
-        # Source Image Array
-        self.img_arr = {}
+        self.run()
 
     def clean_setup(self) -> None:
         """Sets up a fresh environment
@@ -94,34 +94,31 @@ class ImgMod:
             logging.error("Error: Multiple videos found")
             sys.exit(1)
 
-    def acquire_frames(self, s_f=-1, e_f=-1, i=-1) -> None:
+    def acquire_frames(self, video, i: int = 10) -> tuple[int, int, int]:
         """Pick out frames from a video
 
         This file will preview the video on loop (if requested) to the user
         Then prompt them to select what range of frames should be output
         """
-        video = VidClass(path=self.path, scale=RESIZE)
-
         if PREV:
             logging.info("Previewing Video frames...")
             video.play_vid()
 
         ## DEBUG
-        s_f = 0
-        e_f = len(video.frame_arr) - 1
-        i = 10
+        s_f: int = 0
+        e_f: int = video.fcnt - 1
 
 
         if MANUAL_FRAMES:
             e_f = 0
             # Prompt the user for their frame selection
-            while s_f < 0 or s_f >= len(video.frame_arr) - 1:
+            while s_f < 0 or s_f >= video.fcnt - 1:
                 try:
                     s_f = int(input("Start Frame: "))
                 except ValueError:
                     logging.warning("enter an int!")
                     s_f = -1
-            while e_f < s_f or e_f >= len(video.frame_arr):
+            while e_f < s_f or e_f >= video.fcnt:
                 try:
                     e_f = int(input("End Frame: "))
                 except ValueError:
@@ -134,26 +131,7 @@ class ImgMod:
                     logging.warning("enter an int!")
                     i = -1
 
-        # Write the frames to the frames directory
-        video.select_frames(s_f, e_f, i)
-
-
-    def parse_dir(self) -> None:
-        """Parses a directory of frames and reads in images to a list"""
-        frame_dir = self.path + "/1_orig_frames/"
-
-        for file_name in os.listdir(frame_dir):
-            # check if the image ends with png or jpg or jpeg
-            if (file_name.endswith(".png") or file_name.endswith(".jpg")
-                or file_name.endswith(".jpeg")):
-                logging.info("Reading File: %s...", file_name)
-                img = cv2.imread(frame_dir + file_name)
-
-                if img is None:
-                    logging.info('Could not open or find the image: %s', file_name)
-                    sys.exit(1)
-
-                self.img_arr[file_name] = img
+        return s_f, e_f, i
 
     def find_faces(self, gry_img) -> list:
         """Scans an image for faces
@@ -190,20 +168,20 @@ class ImgMod:
         """
         # Convert to HSV and split
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        h,s,v = cv2.split(hsv)
+        values = hsv[:,:,2]
 
         # Identify the Black and White points automatically
-        b_p = np.min(v)
-        w_p = np.max(v)
+        b_p = np.min(values)
+        w_p = np.max(values)
 
         return b_p, w_p
 
-    def adjust(self, cur_img, fname: str, mod_name = "", color=(0, 1), balance = (0, 255)):
+    def adjust(self, img, fname: str, mod_name = "", color=(0, 1), balance = (0, 255)):
         """Adjust the white balance and hue/saturation of the image at the same time
 
         Accomplished by modifying the blackpoint, whitepoint, and graypoint.
 
-        :param cur_img: input BGR pixel array
+        :param img: input BGR pixel array
         :param fname: str - name of the input image, it will also be the output name (e.g frame27)
         :param color: tuple input that contains the hue and saturation inputs
             :param hmod: hue offset - all hue values will be *incremented* by this number
@@ -214,15 +192,17 @@ class ImgMod:
             :param g_p: gray point - *NOT YET IMPLEMENTED*
 
         TODO: Add graypoint into calculation
+        FIXME: This is slow
         """
         # Read in tuple input parameters
         h_mod, s_mod = color
         b_p, w_p = balance
         if mod_name == "":
             mod_name = f"/h{h_mod}_s{s_mod}_b{b_p}_w{w_p}/"
+
         # Convert to HSV and split
-        hsv_img = cv2.cvtColor(cur_img, cv2.COLOR_BGR2HSV)
-        h,s,v = cv2.split(hsv_img)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        h,s,v = cv2.split(hsv)
 
         ##########   START ADJUSTMENTS   ##########
         # Modify Hue by applying a mod
@@ -234,8 +214,8 @@ class ImgMod:
 
         # Modify Value (White Balance) by clipping, subtracting, and scaling
         scale = (w_p-b_p)/255
-        v_new = np.clip(v, b_p, w_p) - b_p         # Clipped/Subtracted Values
-        v_new = (v_new / scale).astype(np.uint8)      # Scaled Values
+        v_new = ((np.clip(v, b_p, w_p) - b_p) / scale).astype(np.uint8)         # Clipped/Subtracted Values
+        # v_new = (v_new / scale).astype(np.uint8)       # Scaled Values
 
         # Recombine channels
         hsv_new = cv2.merge([h_new,s_new,v_new])
@@ -248,8 +228,7 @@ class ImgMod:
         ##########   START PREVIEW   ##########
         if PREV:
             cv2.imshow(mod_name, n_img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            time.sleep(.1)
         ##########    END PREVIEW    ##########
 
 
@@ -260,7 +239,7 @@ class ImgMod:
             cv2.imwrite(self.path + mod_name + fname, n_img)
         ##########    END OUTPUT    ##########
 
-        return n_img
+        return hsv
 
 
     def run(self) -> None:
@@ -270,16 +249,32 @@ class ImgMod:
         If any changes are needed by the end user, they will likely be done here
         """
         ##########   START LOAD IMAGES   ##########
-        if VIDEO:
-            self.acquire_frames()           # Grabs the frames from the video, if enabled
-        self.parse_dir()                    # Grabs the generated frames from "./1_orig_frames"
+        # if VIDEO:
+        self.clean_setup()
+        video = FrameExt(path=self.path, scale=RESIZE)
+        start, stop, interval = self.acquire_frames(video)           # Grabs the frames from the video, if enabled
+        # self.parse_dir()                    # Grabs the generated frames from "./1_orig_frames"
         ##########    END LOAD IMAGES    ##########
 
         ##########   START IMAGE MODS   ##########
-        for file_name, cur_img in self.img_arr.items():
+        vid_start = datetime.datetime.utcnow()
+        for i in range(start, int(stop), interval):
+            # Frame Timing
+            frame_start = datetime.datetime.utcnow()
+
+            # Original Image
+            img = video.get_frame(i)
+            # logging.info("\tImage Read")
+            if img is None:
+                continue
+
+            fname = f"{i:04d}.jpg"
+            cv2.imwrite(f"{self.path}/1_orig_frames/{fname}", img)
+
             # Initial Grayscale
-            gry_img = cv2.cvtColor(cur_img, cv2.COLOR_BGR2GRAY)
-            cv2.imwrite(self.path + "/2_grayscale/" + file_name, gry_img)
+            gry_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            cv2.imwrite(f"{self.path}/2_grayscale/{fname}", gry_img)
+            # logging.info("\tDefault Outs")
 
             ##########   START FACES   ##########
             if FACE:
@@ -292,61 +287,59 @@ class ImgMod:
 
                 logging.info("%d faces found!", len(faces))
                 # Draw a rectangle around the faces
-                cropped = cur_img
+                cropped = img
                 for (x, y, w, h) in faces:
-                    cropped = cur_img[y:y+h, x:x+w]
+                    cropped = img[y:y+h, x:x+w]
                     cv2.imshow("cropped", cropped)
                     logging.info("Press 'c' to confirm. Any other button skips.")
                     if cv2.waitKey(0) & 0xFF == ord('c'):
                         a_bp, a_wp = self.auto_balance(cropped)         # Auto
-                        self.adjust(cur_img, file_name, mod_name="/3_auto/", balance=(a_bp, a_wp))
+                        self.adjust(img, fname, mod_name="/3_auto/", balance=(a_bp, a_wp))
             ########   END FACES   ########
 
             ########## ADJUSTMENTS ##########
             # NOTE: IF ANY ADJUSTMENTS ARE NEEDED, THEY WILL BE MADE HERE
             # Brightness/Contrast using Black and White points
-            fc_1 = self.adjust(cur_img=cur_img, fname=file_name, balance=(0, 190))
-            fc_2 = self.adjust(cur_img=fc_1, fname=file_name, balance=(0, 200))
-            self.adjust(cur_img=fc_2, fname=file_name, balance=(50, 200))
-            self.adjust(cur_img=cur_img, fname=file_name, balance=(12, 220))
-            self.adjust(cur_img=cur_img, fname=file_name, balance=(24, 185))
+            logging.info("Adjust 1...")
+            fc_1: npt.NDArray[Any] = self.adjust(img=img, fname=fname, balance=(0, 190))
+            logging.info("Adjust 2...")
+            fc_2: npt.NDArray[Any] = self.adjust(img=fc_1, fname=fname, balance=(0, 200))
+            logging.info("Adjust 3...")
+            self.adjust(img=fc_2, fname=fname, balance=(50, 200))
+            logging.info("Adjust 4...")
+            self.adjust(img=img, fname=fname, balance=(12, 220))
+            logging.info("Adjust 5...")
+            self.adjust(img=img, fname=fname, balance=(24, 185))
 
             # Hue/Saturation
-            self.adjust(cur_img=cur_img, fname=file_name, color=(45,1), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(45,100), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(90,1), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(90,100), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(135,1), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(135,100), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(180,1), balance=(24, 185))
-            self.adjust(cur_img=cur_img, fname=file_name, color=(180,100), balance=(24, 185))
+            logging.info("Adjust 6...")
+            self.adjust(img=img, fname=fname, color=(45,1), balance=(24, 185))
+            logging.info("Adjust 7...")
+            self.adjust(img=img, fname=fname, color=(45,100), balance=(24, 185))
+            logging.info("Adjust 8...")
+            self.adjust(img=img, fname=fname, color=(90,1), balance=(24, 185))
+            logging.info("Adjust 9...")
+            self.adjust(img=img, fname=fname, color=(90,100), balance=(24, 185))
+            logging.info("Adjust 10...")
+            self.adjust(img=img, fname=fname, color=(135,1), balance=(24, 185))
+            logging.info("Adjust 11...")
+            self.adjust(img=img, fname=fname, color=(135,100), balance=(24, 185))
+            logging.info("Adjust 12...")
+            self.adjust(img=img, fname=fname, color=(180,1), balance=(24, 185))
+            logging.info("Adjust 13...")
+            self.adjust(img=img, fname=fname, color=(180,100), balance=(24, 185))
+            cv2.destroyAllWindows()
+
+            # Timing Diagnostics
+            frame_stop = datetime.datetime.utcnow()
+            ftime = (frame_stop - frame_start).total_seconds()
+            logging.info("Frame %d took %f seconds", i, ftime)
             ########   END ADJUSTMENTS   ##########
+        vid_stop = datetime.datetime.utcnow()
+        vtime = (vid_stop - vid_start).total_seconds()
+        logging.info("Video took %f seconds", vtime)
         ##########    END IMAGE MODS    ##########
-
-
-    # def color_mod(self, cur_img, b_scale: float, g_scale: float, r_scale: float):
-    #     """Adjusts the Intensity of each BGR value individually
-
-    #     :param cur_img: input BGR pixel array
-    #     :param b_scale: percentage value to scale blue pixels
-    #     :param g_scale: percentage value to scale green pixels
-    #     :param r_scale: percentage value to scale red pixels
-    #     """
-    #     b,g,r = cv2.split(cur_img)
-
-    #     b = b * b_scale
-    #     g = g * g_scale
-    #     r = r * r_scale
-
-    #     b = np.clip(b, 0, 255)
-    #     g = np.clip(g, 0, 255)
-    #     r = np.clip(r, 0, 255)
-
-    #     n_img = cv2.merge([b,g,r])
-
-    #     return n_img
 
 
 if __name__ == "__main__":
     im = ImgMod()
-    sys.exit(im.run())
