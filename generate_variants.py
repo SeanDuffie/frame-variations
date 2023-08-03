@@ -248,8 +248,8 @@ class ImgMod:
         ##########   START PREVIEW   ##########
         if PREV:
             cv2.imshow(mod_name, n_img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
         ##########    END PREVIEW    ##########
 
 

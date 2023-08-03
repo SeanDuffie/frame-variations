@@ -90,7 +90,7 @@ class VidClass:
         """
         mrk = start
         while mrk <= end:
-            cv2.imwrite(f"{self.path}/1_orig_frames/frame{mrk}.jpg", self.frame_arr[mrk])
+            cv2.imwrite(f"{self.path}/1_orig_frames/frame{mrk:04d}.jpg", self.frame_arr[mrk])
             mrk += interval
 
     def resize_img(self, img, scale: float):
